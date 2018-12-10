@@ -32,7 +32,7 @@ class TracedParallelBatchSpec extends Specification {
 	@AutoCleanup
 	ExecHarness harness = ExecHarness.harness(3)
 
-	TestReporter reporter = new TestReporter()
+  TestReporter reporter = new TestReporter()
 	Tracing tracing
 
 	Tracing.Builder tracingBuilder(Execution execution) {
