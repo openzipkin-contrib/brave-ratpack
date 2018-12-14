@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+#
+# Copyright 2016-2018 The OpenZipkin Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License
+# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied. See the License for the specific language governing permissions and limitations under
+# the License.
+#
 
 set -euo pipefail
 set -x
@@ -59,6 +72,15 @@ check_release_tag() {
     fi
 }
 
+is_release_commit() {
+  project_version=$(./mvnw help:evaluate -N -Dexpression=project.version|sed -n '/^[0-9]/p')
+  if [[ "$project_version" =~ ^[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+$ ]]; then
+    echo "Build started by release commit $project_version. Will synchronize to maven central."
+    return 0
+  else
+    return 1
+  fi
+}
 
 release_version() {
     echo "${TRAVIS_TAG}" | sed 's/^release-//'
@@ -87,16 +109,23 @@ if ! is_pull_request && build_started_by_tag; then
   check_release_tag
 fi
 
-./mvnw install
+./mvnw install -nsu
 
+# If we are on a pull request, our only job is to run tests, which happened above via ./mvnw install
 if is_pull_request; then
   true
+# If we are on master, we will deploy the latest snapshot or release version
+#   - If a release commit fails to deploy for a transient reason, delete the broken version from bintray and click rebuild
 elif is_travis_branch_master; then
-    # deploy the signed artifact
-    ./mvnw -s ./.settings.xml -Prelease -Dgpg.secretKeyring=travis/secring.gpg -Dgpg.publicKeyring=travis/pubring.gpg -Dgpg.defaultKeyring=false -Dgpg.keyname=$SIGNING_KEY_ID -Dgpg.passphrase=$SIGNING_PASSWORD deploy
+  ./mvnw --batch-mode -s ./.settings.xml -Prelease -nsu -DskipTests deploy
 
+  # If the deployment succeeded, sync it to Maven Central. Note: this needs to be done once per project, not module, hence -N
+  if is_release_commit; then
+    ./mvnw --batch-mode -s ./.settings.xml -nsu -N io.zipkin.centralsync-maven-plugin:centralsync-maven-plugin:sync
+  fi
+
+# If we are on a release tag, the following will update any version references and push a version tag for deployment.
 elif build_started_by_tag; then
-    safe_checkout_master
-    # prepare the release using the release version from the tag
-  ./mvnw release:prepare -B -Darguments="-DskipTests" -DreleaseVersion=$(release_version) -Dgpg.skip=true
+  safe_checkout_master
+  ./mvnw --batch-mode -s ./.settings.xml -Prelease -nsu -DreleaseVersion="$(release_version)" -Darguments="-DskipTests" release:prepare
 fi

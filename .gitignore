@@ -1,6 +1,10 @@
-target
+target/
 .gradle
-build
+build/
+.classpath
+.project
+bin/
+.settings/
 
 ### https://raw.github.com/github/gitignore/da00310ccba9de9a988cc973ef5238ad2c1460e9/Global/JetBrains.gitignore
 
@@ -52,5 +56,3 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
-
-
