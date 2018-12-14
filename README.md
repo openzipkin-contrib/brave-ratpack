@@ -1,6 +1,6 @@
-# ratpack-zipkin
+[![Build Status][ci-img]][ci] [![Released Version][maven-img]][maven]
 
-![Build status](https://travis-ci.org/hyleung/ratpack-zipkin.svg?branch=master) [![codecov.io](http://codecov.io/github/hyleung/ratpack-zipkin/coverage.svg?branch=master)](http://codecov.io/github/hyleung/ratpack-zipkin?branch=master)
+# ratpack-zipkin
 
 [Zipkin](https://twitter.github.io/zipkin/index.html) support for [Ratpack](http://www.ratpack.io).
 
@@ -62,7 +62,7 @@ Version 2 of this library incorporates Brave 4.x.
 Using Gradle:
 
 ```
-compile 'com.github.hyleung:ratpack-zipkin:2.3.0'
+compile 'io.zipkin.brave.ratpack:brave-ratpack:2.3.1'
 ```
 
 Using Maven:
@@ -232,9 +232,9 @@ Using Maven:
 
 ```
 <dependency>
-  <groupId>com.github.hyleung</groupId>
-  <artifactId>ratpack-zipkin</artifactId>
-  <version>1.2.1</version>
+  <groupId>io.zipkin.brave.ratpack</groupId>
+  <artifactId>brave-ratpack</artifactId>
+  <version>2.3.1</version>
 </dependency>
 ```
 
@@ -306,5 +306,10 @@ For client requests, we record the following:
 
 For client responses, we record the following:
 - [TraceKeys.HTTP_STATUS_CODE](http://zipkin.io/zipkin/1.20.1/zipkin/zipkin/TraceKeys.html#HTTP_STATUS_CODE) for all **non-2xx** responses
+
+    [ci-img]: https://travis-ci.org/openzipkin-contrib/brave-ratpack.svg?branch=master
+    [ci]: https://travis-ci.org/openzipkin-contrib/brave-ratpack
+    [maven-img]: https://img.shields.io/maven-central/v/io.zipkin.brave.ratpack/brave-ratpack.svg?maxAge=2592000
+    [maven]: http://search.maven.org/#search%7Cga%7C1%7Cbrave-ratpack
 
 
