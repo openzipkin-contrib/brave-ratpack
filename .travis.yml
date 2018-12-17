@@ -11,7 +11,7 @@ cache:
 language: java
 
 jdk:
-  - oraclejdk11
+  - oraclejdk8
 
 
 before_install:
