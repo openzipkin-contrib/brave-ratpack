@@ -27,53 +27,19 @@ To build and install into your local environment:
 ./mvnw clean install
 ```
 
-## Snapshot Releases
+## Artifacts
 
-Using Gradle:
+### Library Releases
 
-```
-repositories {
-    mavenCentral()
-    maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots/"
-    }
-}
-```
+Releases are uploaded to [Bintray](https://bintray.com/openzipkin-contrib/maven/brave-ratpack).
 
-Using Maven:
+### Library Snaphosts
 
-```
-<repositories>
-  <repository>
-    <id>snapshots-repo</id>
-    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    <releases><enabled>false</enabled></releases>
-    <snapshots><enabled>true</enabled></snapshots>
-  </repository>
-</repositories>
-```
+Snapshots are uploaded to [JFrog](http://oss.jfrog.org/oss-snapshot-local/) after commits to master.
 
 ## Ratpack-zipkin V2 
 
 Version 2 of this library incorporates Brave 4.x.
-
-### v2 Binaries
-
-Using Gradle:
-
-```
-compile 'io.zipkin.brave.ratpack:brave-ratpack:2.3.1'
-```
-
-Using Maven:
-
-```
-<dependency>
-  <groupId>com.github.hyleung</groupId>
-  <artifactId>ratpack-zipkin</artifactId>
-  <version>2.3.0</version>
-</dependency>
-```
 
 ### v2 Usage
 
@@ -216,100 +182,12 @@ Reporter<Span> reporter =
                                                okHttpHost)));
 ```
 
-Note that v1 Reporter support is now *deprecated*.
-
-## Ratpack-zipkin V1
-
-### v1 Binaries
-
-Using Gradle:
-
-```
-compile 'com.github.hyleung:ratpack-zipkin:1.2.1'
-```
-
-Using Maven:
-
-```
-<dependency>
-  <groupId>io.zipkin.brave.ratpack</groupId>
-  <artifactId>brave-ratpack</artifactId>
-  <version>2.3.1</version>
-</dependency>
-```
-
-
-### v1 Usage
-
-#### SR/SS Spans
-
-The minimal configuration:
-
-```
-RatpackServer.start(server -> server
-    .serverConfig(config -> config.port(serverPort))
-    .registry(Guice.registry(binding -> binding
-        .module(ServerTracingModule.class, config -> config.serviceName("some-service-name")
-        .bind(HelloWorldHandler.class)
-    ))(
-    .handlers(chain -> chain
-        ...)
-);
-```
-
-This should add a `HandlerDecorator` that adds server send (SS) and server receive (SS) tracing using the default settings.
-
-There's a small demo app in [ratpack-zipkin-example](https://github.com/hyleung/ratpack-zipkin-example).
-
-#### CS/CR Spans 
-For tracing of Http client spans, use the `@Zipkin` annotation to inject a Zipkin instrumented implementation of the
-Ratpack `HttpClient`.
-
-```
-@Inject
-@Zipkin
-HttpClient client
-...
-client.get(new URI("http://example.com", requestSpec -> ...))
-    ... 
-```
-
-This annotation can be used for both field and constructor injection.
-
-#### Local Spans
-
-For local spans, use the normal Brave `LocalTracer`:
-
-```
-@Inject LocalTracer tracer
-
-...
-tracer.startNewSpan("My component", "an operation");
-...
-tracer.finishSpan();
-```
-
-Currently nested local spans don't work in v1, but are supported in v2.
-
-#### Default Tags
-
-For server requests, we record the following annotations:
-- [TraceKeys.HTTP_METHOD](http://zipkin.io/zipkin/1.20.1/zipkin/zipkin/TraceKeys.html#HTTP_METHOD)
-- [TraceKeys.HTTP_PATH](http://zipkin.io/zipkin/1.20.1/zipkin/zipkin/TraceKeys.html#HTTP_PATH)
-
-For server responses, we record the following:
-- [TraceKeys.HTTP_STATUS_CODE](http://zipkin.io/zipkin/1.20.1/zipkin/zipkin/TraceKeys.html#HTTP_STATUS_CODE) for all **non-2xx** responses
-
-For client requests, we record the following:
-- [TraceKeys.HTTP_METHOD](http://zipkin.io/zipkin/1.20.1/zipkin/zipkin/TraceKeys.html#HTTP_METHOD)
-- [TraceKeys.HTTP_PATH](http://zipkin.io/zipkin/1.20.1/zipkin/zipkin/TraceKeys.html#HTTP_PATH)
-
-For client responses, we record the following:
-- [TraceKeys.HTTP_STATUS_CODE](http://zipkin.io/zipkin/1.20.1/zipkin/zipkin/TraceKeys.html#HTTP_STATUS_CODE) for all **non-2xx** responses
+Note:
+- The V1 version of this library targeting the older Brave library is now *deprecated* and is no longer released.
+  If this is a problem for anyone please open an issue and we will re-evaluate the need to continue support for this.
+- The Brave V1 Span Reporter support is now *deprecated*.
 
     [ci-img]: https://travis-ci.org/openzipkin-contrib/brave-ratpack.svg?branch=master
     [ci]: https://travis-ci.org/openzipkin-contrib/brave-ratpack
     [maven-img]: https://img.shields.io/maven-central/v/io.zipkin.brave.ratpack/brave-ratpack.svg?maxAge=2592000
     [maven]: http://search.maven.org/#search%7Cga%7C1%7Cbrave-ratpack
-
-
