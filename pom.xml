@@ -86,7 +86,7 @@
     <repository>
       <id>bintray</id>
       <name>bintray</name>
-      <url>https://dl.bintray.com/openzipkin-contrib/maven</url>
+      <url>https://api.bintray.com/maven/openzipkin-contrib/maven/brave-ratpack/;publish=1</url>
     </repository>
     <snapshotRepository>
       <id>jfrog-snapshots</id>
