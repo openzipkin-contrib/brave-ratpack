@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -27,8 +27,13 @@ import ratpack.zipkin.internal.RatpackCurrentTraceContext;
  * which do not "inherit" registries from the calling execution. Consequently,
  * the trace context must be passed explicitly to the forked executions.
  *
+ * @deprecated As of 2.4 brave-ratpack is now providing an {@link ratpack.exec.ExecInitializer} bound in guice by {@link ServerTracingModule}
+ * which will deal with passing tracing contexts around Ratpack executions. The propagation is done in {@link ratpack.zipkin.internal.RatpackCurrentTraceContext.TracingPropagationExecInitializer},
+ * this kind of propagation is only possible with Ratpack version 1.6 and above as the parent execution is now avaialble.
+ *
  * @param <T> the type of value produced by each promise in the batch.
  */
+@Deprecated
 public final class TracedParallelBatch<T> {
 
   private final Iterable<? extends Promise<T>> promises;

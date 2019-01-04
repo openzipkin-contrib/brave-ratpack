@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -13,10 +13,12 @@
  */
 package ratpack.zipkin.internal;
 
+import brave.http.HttpTracing;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.TraceContext;
 import java.util.function.Supplier;
 import org.slf4j.MDC;
+import ratpack.exec.ExecInitializer;
 import ratpack.exec.Execution;
 import ratpack.registry.MutableRegistry;
 
@@ -87,6 +89,26 @@ public final class RatpackCurrentTraceContext extends CurrentTraceContext {
 
     private TraceContextHolder(final TraceContext context) {
       this.context = context;
+    }
+  }
+
+  /**
+   * ExecInitializer that will propagate the tracing context into any new execution created.
+   */
+  public static class TracingPropagationExecInitializer implements ExecInitializer {
+
+    @Override
+    public void init(Execution execution) {
+      execution.maybeParent().ifPresent(parent -> {
+        parent.maybeGet(HttpTracing.class).ifPresent(httpTracing -> {
+          TraceContext traceContext = httpTracing.tracing().currentTraceContext().get();
+          if (traceContext == null) {
+            execution.add(RatpackCurrentTraceContext.TraceContextHolder.EMPTY);
+          } else {
+            execution.add(new RatpackCurrentTraceContext.TraceContextHolder(traceContext));
+          }
+        });
+      });
     }
   }
 

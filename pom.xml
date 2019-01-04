@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.zipkin.brave.ratpack</groupId>
   <artifactId>brave-ratpack</artifactId>
-  <version>2.3.3-SNAPSHOT</version>
+  <version>2.4.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>brave-ratpack</name>
   <description>Brave instrumentation for Ratpack</description>
@@ -50,7 +50,7 @@
     <license-maven-plugin.version>3.0</license-maven-plugin.version>
 
     <brave.version>5.1.5</brave.version>
-    <ratpack.version>1.4.6</ratpack.version>
+    <ratpack.version>1.6.0</ratpack.version>
 
   </properties>
 
