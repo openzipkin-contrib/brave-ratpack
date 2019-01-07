@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -33,10 +33,7 @@ import ratpack.guice.ConfigurableModule;
 import ratpack.handling.HandlerDecorator;
 import ratpack.http.client.HttpClient;
 import ratpack.server.ServerConfig;
-import ratpack.zipkin.internal.DefaultServerTracingHandler;
-import ratpack.zipkin.internal.RatpackCurrentTraceContext;
-import ratpack.zipkin.internal.RatpackHttpServerParser;
-import ratpack.zipkin.internal.ZipkinHttpClientImpl;
+import ratpack.zipkin.internal.*;
 import zipkin2.Endpoint;
 import zipkin2.Span;
 import zipkin2.reporter.Reporter;
@@ -58,6 +55,9 @@ public class ServerTracingModule extends ConfigurableModule<ServerTracingModule.
         .in(Singleton.class);
 
     bind(ZipkinHttpClientImpl.class);
+
+    bind(RatpackCurrentTraceContext.TracingPropagationExecInitializer.class)
+            .in(Singleton.class);
 
     Provider<ServerTracingHandler> serverTracingHandlerProvider =
         getProvider(ServerTracingHandler.class);

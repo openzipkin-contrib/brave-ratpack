@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -31,16 +31,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import javax.inject.Inject;
 import javax.net.ssl.SSLContext;
+
+import io.netty.handler.ssl.SslContext;
 import ratpack.exec.Promise;
 import ratpack.exec.Result;
 import ratpack.func.Action;
 import ratpack.func.Function;
 import ratpack.http.HttpMethod;
 import ratpack.http.MutableHeaders;
-import ratpack.http.client.HttpClient;
-import ratpack.http.client.ReceivedResponse;
-import ratpack.http.client.RequestSpec;
-import ratpack.http.client.StreamedResponse;
+import ratpack.http.client.*;
 
 /**
  * Decorator that adds Zipkin client logging around {@link HttpClient}.
@@ -75,8 +74,18 @@ public final class ZipkinHttpClientImpl implements HttpClient {
     }
 
     @Override
+    public int getPoolQueueSize() {
+        return delegate.getPoolQueueSize();
+    }
+
+    @Override
     public Duration getReadTimeout() {
         return delegate.getReadTimeout();
+    }
+
+    @Override
+    public Duration getConnectTimeout() {
+        return delegate.getConnectTimeout();
     }
 
     @Override
@@ -85,8 +94,18 @@ public final class ZipkinHttpClientImpl implements HttpClient {
     }
 
     @Override
+    public int getMaxResponseChunkSize() {
+        return delegate.getMaxResponseChunkSize();
+    }
+
+    @Override
     public void close() {
         delegate.close();
+    }
+
+    @Override
+    public HttpClient copyWith(Action<? super HttpClientSpec> action) throws Exception {
+        return delegate.copyWith(action);
     }
 
     @Override
@@ -223,6 +242,11 @@ public final class ZipkinHttpClientImpl implements HttpClient {
         }
 
         @Override
+        public int getRedirects() {
+            return delegate.getRedirects();
+        }
+
+        @Override
         public RequestSpec onRedirect(Function<? super ReceivedResponse, Action<? super RequestSpec>> function) {
 
             Function<? super ReceivedResponse, Action<? super RequestSpec>> wrapped =
@@ -239,6 +263,16 @@ public final class ZipkinHttpClientImpl implements HttpClient {
         }
 
         @Override
+        public SslContext getSslContext() {
+            return delegate.getSslContext();
+        }
+
+        @Override
+        public RequestSpec sslContext(SslContext sslContext) {
+            return delegate.sslContext(sslContext);
+        }
+
+        @Override
         public MutableHeaders getHeaders() {
             return this.delegate.getHeaders();
         }
@@ -247,6 +281,17 @@ public final class ZipkinHttpClientImpl implements HttpClient {
         public RequestSpec maxContentLength(int numBytes) {
             this.delegate.maxContentLength(numBytes);
             return this;
+        }
+
+        @Override
+        public int getMaxContentLength() {
+            return delegate.getMaxContentLength();
+        }
+
+        @Override
+        public RequestSpec responseMaxChunkSize(int i) {
+             this.delegate.responseMaxChunkSize(i);
+             return this;
         }
 
         @Override
@@ -265,9 +310,19 @@ public final class ZipkinHttpClientImpl implements HttpClient {
         }
 
         @Override
+        public HttpMethod getMethod() {
+            return delegate.getMethod();
+        }
+
+        @Override
         public RequestSpec decompressResponse(boolean shouldDecompress) {
             this.delegate.decompressResponse(shouldDecompress);
             return this;
+        }
+
+        @Override
+        public boolean getDecompressResponse() {
+            return delegate.getDecompressResponse();
         }
 
         @Override
@@ -282,9 +337,19 @@ public final class ZipkinHttpClientImpl implements HttpClient {
         }
 
         @Override
+        public Duration getConnectTimeout() {
+            return delegate.getConnectTimeout();
+        }
+
+        @Override
         public RequestSpec readTimeout(Duration duration) {
             this.delegate.readTimeout(duration);
             return this;
+        }
+
+        @Override
+        public Duration getReadTimeout() {
+            return delegate.getReadTimeout();
         }
 
         @Override
