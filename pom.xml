@@ -156,7 +156,7 @@
       <artifactId>groovy-all</artifactId>
       <!-- any version of Groovy \>= 1.5.0 should work here -->
       <version>2.4.6</version>
-      <type>pom</type>
+      <scope>test</scope>
     </dependency>
     <!-- Test dependencies -->
     <!-- Mandatory dependencies for using Spock -->
