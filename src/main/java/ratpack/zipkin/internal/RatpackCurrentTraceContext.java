@@ -100,8 +100,8 @@ public final class RatpackCurrentTraceContext extends CurrentTraceContext {
     @Override
     public void init(Execution execution) {
       execution.maybeParent().ifPresent(parent -> {
-        parent.maybeGet(HttpTracing.class).ifPresent(httpTracing -> {
-          TraceContext traceContext = httpTracing.tracing().currentTraceContext().get();
+        parent.maybeGet(TraceContextHolder.class).ifPresent(traceContextHolder -> {
+          TraceContext traceContext = traceContextHolder.context;
           if (traceContext == null) {
             execution.add(RatpackCurrentTraceContext.TraceContextHolder.EMPTY);
           } else {
