@@ -13,7 +13,7 @@
  */
 package ratpack.zipkin.internal;
 
-import brave.http.HttpTracing;
+
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.TraceContext;
 import java.util.function.Supplier;
@@ -46,26 +46,39 @@ public final class RatpackCurrentTraceContext extends CurrentTraceContext {
 
   @Override
   public Scope newScope(TraceContext current) {
-    final TraceContextHolder previous = registrySupplier.get()
+    final MutableRegistry registry = registrySupplier.get();
+
+    // get previous entry if one exists so we can re-add it when
+    // the scope is closed.
+    final TraceContextHolder previous = registry
         .maybeGet(TraceContextHolder.class)
         .orElse(TraceContextHolder.EMPTY);
 
+    removeAll(registry);
+
     if (current != null) {
-      registrySupplier.get().add(new TraceContextHolder(current));
+      registry.add(new TraceContextHolder(current));
       MDC.put(TRACE_ID_KEY, current.traceIdString());
     } else {
-      registrySupplier.get().add(TraceContextHolder.EMPTY);
+      registry.add(TraceContextHolder.EMPTY);
       MDC.remove(TRACE_ID_KEY);
     }
 
     return () -> {
-      registrySupplier.get().add(previous);
+      removeAll(registry);
+      registry.add(previous);
       if (previous.context != null) {
         MDC.put(TRACE_ID_KEY, previous.context.traceIdString());
       } else {
         MDC.remove(TRACE_ID_KEY);
       }
     };
+  }
+
+  private void removeAll(MutableRegistry registry) {
+    registry
+      .getAll(TraceContextHolder.class)
+      .forEach(tch -> registry.remove(TraceContextHolder.class));
   }
 
   /**
@@ -99,16 +112,10 @@ public final class RatpackCurrentTraceContext extends CurrentTraceContext {
 
     @Override
     public void init(Execution execution) {
-      execution.maybeParent().ifPresent(parent -> {
-        parent.maybeGet(TraceContextHolder.class).ifPresent(traceContextHolder -> {
-          TraceContext traceContext = traceContextHolder.context;
-          if (traceContext == null) {
-            execution.add(RatpackCurrentTraceContext.TraceContextHolder.EMPTY);
-          } else {
-            execution.add(new RatpackCurrentTraceContext.TraceContextHolder(traceContext));
-          }
-        });
-      });
+      execution
+        .maybeParent()
+        .flatMap(parent -> parent.maybeGet(TraceContextHolder.class))
+        .ifPresent(execution::add);
     }
   }
 
