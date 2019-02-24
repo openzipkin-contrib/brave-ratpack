@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -15,9 +15,12 @@ package ratpack.zipkin.internal
 
 import brave.propagation.CurrentTraceContext
 import brave.propagation.TraceContext
+import ratpack.exec.ExecSpec
+import ratpack.exec.Execution
 import ratpack.registry.MutableRegistry
 import ratpack.registry.Registry
 import spock.lang.Specification
+import ratpack.zipkin.internal.RatpackCurrentTraceContext.TraceContextHolder
 
 class RatpackCurrentTraceContextSpec extends Specification {
     MutableRegistry registry = Registry.mutable()
@@ -40,6 +43,7 @@ class RatpackCurrentTraceContextSpec extends Specification {
             def current = traceContext.get()
         expect:
             current == null
+            registry.getAll(TraceContextHolder).size() == 0
     }
 
     def 'When setting TraceContext span, should return same TraceContext'() {
@@ -51,6 +55,7 @@ class RatpackCurrentTraceContextSpec extends Specification {
             def result = traceContext.get()
         then:
             result == expected
+            registry.getAll(TraceContextHolder).size() == 1
     }
 
     def 'When closing a scope, trace context should revert back to previous'() {
@@ -65,6 +70,7 @@ class RatpackCurrentTraceContextSpec extends Specification {
             def traceContext = traceContext.get()
         then:
             expected ==  traceContext
+            registry.getAll(TraceContextHolder).size() == 1
     }
 
 
@@ -80,6 +86,7 @@ class RatpackCurrentTraceContextSpec extends Specification {
             def traceContext = traceContext.get()
         then:
             traceContext == null
+            registry.getAll(TraceContextHolder).size() == 1
     }
 
     def 'When TraceContext is null the context should be cleared'() {
@@ -91,10 +98,12 @@ class RatpackCurrentTraceContextSpec extends Specification {
             def result = traceContext.get()
         then:
             result == expected
+            registry.getAll(TraceContextHolder).size() == 1
         when:
             traceContext.newScope(null)
         then:
             traceContext.get() == null
+            registry.getAll(TraceContextHolder).size() == 1
     }
 
 }
