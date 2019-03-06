@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,28 +14,34 @@
 package ratpack.zipkin
 
 import brave.SpanCustomizer
+import brave.Tracer
 import brave.http.HttpSampler
 import brave.propagation.B3Propagation
+import brave.sampler.Sampler
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.netty.handler.codec.http.HttpResponseStatus
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import ratpack.groovy.test.embed.GroovyEmbeddedApp
+import ratpack.guice.Guice
 import ratpack.handling.Context
 import ratpack.handling.Handler
+import ratpack.http.HttpMethod
+import ratpack.jackson.Jackson
 import ratpack.path.PathBinding
 import ratpack.zipkin.internal.ZipkinHttpClientImpl
 import ratpack.zipkin.support.B3PropagationHeaders
-import spock.lang.Unroll
-import zipkin2.reporter.Reporter
-
-import static org.assertj.core.api.Assertions.*
-
-import brave.sampler.Sampler
-import io.netty.handler.codec.http.HttpResponseStatus
-import ratpack.groovy.test.embed.GroovyEmbeddedApp
-import ratpack.guice.Guice
-import ratpack.http.HttpMethod
 import ratpack.zipkin.support.TestReporter
 import spock.lang.Specification
+import spock.lang.Unroll
 import zipkin2.Span
+import zipkin2.reporter.Reporter
+
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
+
+import static org.assertj.core.api.Assertions.assertThat
 
 class ServerTracingModuleSpec extends Specification {
 
@@ -572,5 +578,45 @@ class ServerTracingModuleSpec extends Specification {
             }
 		then:
             assertThat(reporter.getSpans()).isEmpty()
+	}
+
+	def 'Should provide the same trace context before and after parsing the request'() {
+		given:
+			def latch = new CountDownLatch(1)
+			def spans = new AtomicReference<List>()
+			def app = GroovyEmbeddedApp.of { server ->
+			server.registry(Guice.registry { binding ->
+				binding.module(ServerTracingModule.class, { config ->
+					config
+							.serviceName("embedded")
+							.sampler(Sampler.ALWAYS_SAMPLE)
+							.spanReporterV2(reporter)
+				})
+			}).handlers {
+				chain ->
+					chain.all { ctx ->
+						def tracer = ctx.get(Tracer)
+						def context = tracer.currentSpan().context()
+						def initialSpan = context.traceId() + "=" + context.spanId()
+						ctx.request.body.then {
+							def parsedContext = tracer.currentSpan().context()
+							def parsedSpan = parsedContext.traceId() + "=" + parsedContext.spanId()
+							ctx.render(Jackson.json([initialSpan, parsedSpan]))
+						}
+					}
+			}
+		}
+		when:
+			app.test { t ->
+				def resp = t.request { spec ->
+					spec.post().body.text("test")
+				}
+				spans.set(new ObjectMapper().readValue(resp.body.text, new TypeReference<List<String>>(){}))
+				latch.countDown()
+			}
+		then:
+			latch.await()
+			reporter.getSpans().size() == 1
+			spans.get().get(0) == spans.get().get(1)
 	}
 }

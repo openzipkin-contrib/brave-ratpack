@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -19,8 +19,6 @@ import brave.Tracing;
 import brave.http.HttpServerHandler;
 import brave.http.HttpTracing;
 import brave.propagation.TraceContext;
-import javax.inject.Inject;
-
 import com.google.common.net.HostAndPort;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
@@ -35,6 +33,7 @@ import ratpack.zipkin.ServerRequest;
 import ratpack.zipkin.ServerResponse;
 import ratpack.zipkin.ServerTracingHandler;
 
+import javax.inject.Inject;
 import java.util.Optional;
 
 /**
@@ -58,15 +57,16 @@ public final class DefaultServerTracingHandler implements ServerTracingHandler {
     ServerRequest request = new ServerRequestImpl(ctx.getRequest());
     final Span span = handler.handleReceive(extractor, request);
 
+    //place the Span in scope so that downstream code (e.g. Ratpack handlers
+    //further on in the chain) can see the Span.
+    Tracer.SpanInScope scope = tracing.tracer().withSpanInScope(span);
+
     ctx.getResponse().beforeSend(response -> {
+      scope.close();
       ServerResponse serverResponse = new ServerResponseImpl(response, request, ctx.getPathBinding());
       handler.handleSend(serverResponse, null, span);
     });
-    //place the Span in scope so that downstream code (e.g. Ratpack handlers
-    //further on in the chain) can see the Span.
-    try (Tracer.SpanInScope scope = tracing.tracer().withSpanInScope(span)) {
-      ctx.next();
-    }
+    ctx.next();
   }
 
   private static class ServerRequestImpl implements ServerRequest {
