@@ -59,10 +59,19 @@ public final class DefaultServerTracingHandler implements ServerTracingHandler {
 
     //place the Span in scope so that downstream code (e.g. Ratpack handlers
     //further on in the chain) can see the Span.
-    Tracer.SpanInScope scope = tracing.tracer().withSpanInScope(span);
+    Tracer.SpanInScope scope = null;
+    try {
+      tracing.tracer().withSpanInScope(span);
+    } catch (Exception e) {
+      if (scope != null) {
+        scope.close();
+      }
+    }
 
     ctx.getResponse().beforeSend(response -> {
-      scope.close();
+      if (scope != null) {
+        scope.close();
+      }
       ServerResponse serverResponse = new ServerResponseImpl(response, request, ctx.getPathBinding());
       handler.handleSend(serverResponse, null, span);
     });
