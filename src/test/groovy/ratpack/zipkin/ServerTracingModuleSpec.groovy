@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,6 +14,7 @@
 package ratpack.zipkin
 
 import brave.SpanCustomizer
+import brave.Tracer
 import brave.http.HttpSampler
 import brave.propagation.B3Propagation
 import okhttp3.mockwebserver.MockResponse
@@ -572,5 +573,43 @@ class ServerTracingModuleSpec extends Specification {
             }
 		then:
             assertThat(reporter.getSpans()).isEmpty()
+	}
+
+	def 'Should provide the same trace context before and after parsing the request'() {
+		given:
+			def app = GroovyEmbeddedApp.of { server ->
+				server.registry(Guice.registry { binding ->
+					binding.module(ServerTracingModule.class, { config ->
+						config
+								.serviceName("embedded")
+								.sampler(Sampler.ALWAYS_SAMPLE)
+								.spanReporterV2(reporter)
+					})
+				}).handlers {
+					chain ->
+						chain.all { ctx ->
+							def tracer = ctx.get(Tracer)
+							tracer.currentSpan().tag("handler", "")
+
+							ctx.request.body.then {
+								tracer.currentSpan().tag("before_render", "")
+								ctx.render("ok")
+								tracer.currentSpan().tag("after_render", "")
+							}
+						}
+				}
+			}
+		when:
+			app.test { t ->
+				t.request { spec ->
+					spec.post().body.text("test")
+				}
+			}
+		then:
+			reporter.getSpans().size() == 1
+			def span = reporter.getSpans().first()
+			assertThat(span.tags().containsKey("handler"))
+			assertThat(span.tags().containsKey("before_render"))
+			assertThat(span.tags().containsKey("after_render"))
 	}
 }
