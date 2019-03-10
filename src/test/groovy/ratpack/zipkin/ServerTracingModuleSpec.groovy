@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.netty.handler.codec.http.HttpResponseStatus
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import ratpack.form.Form
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.guice.Guice
 import ratpack.handling.Context
@@ -582,41 +583,40 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should provide the same trace context before and after parsing the request'() {
 		given:
-			def latch = new CountDownLatch(1)
-			def spans = new AtomicReference<List>()
 			def app = GroovyEmbeddedApp.of { server ->
-			server.registry(Guice.registry { binding ->
-				binding.module(ServerTracingModule.class, { config ->
-					config
-							.serviceName("embedded")
-							.sampler(Sampler.ALWAYS_SAMPLE)
-							.spanReporterV2(reporter)
-				})
-			}).handlers {
-				chain ->
-					chain.all { ctx ->
-						def tracer = ctx.get(Tracer)
-						def context = tracer.currentSpan().context()
-						def initialSpan = context.traceId() + "=" + context.spanId()
-						ctx.request.body.then {
-							def parsedContext = tracer.currentSpan().context()
-							def parsedSpan = parsedContext.traceId() + "=" + parsedContext.spanId()
-							ctx.render(Jackson.json([initialSpan, parsedSpan]))
+				server.registry(Guice.registry { binding ->
+					binding.module(ServerTracingModule.class, { config ->
+						config
+								.serviceName("embedded")
+								.sampler(Sampler.ALWAYS_SAMPLE)
+								.spanReporterV2(reporter)
+					})
+				}).handlers {
+					chain ->
+						chain.all { ctx ->
+							def tracer = ctx.get(Tracer)
+							tracer.currentSpan().tag("handler", "")
+
+							ctx.parse(Form).then { form ->
+								tracer.currentSpan().tag("before_render", form.get("param"))
+								ctx.render("ok")
+								tracer.currentSpan().tag("after_render", form.get("param"))
+							}
 						}
-					}
+				}
 			}
-		}
 		when:
 			app.test { t ->
-				def resp = t.request { spec ->
-					spec.post().body.text("test")
+				t.request { spec ->
+					spec.post().body.text("param=the_param")
 				}
-				spans.set(new ObjectMapper().readValue(resp.body.text, new TypeReference<List<String>>(){}))
-				latch.countDown()
 			}
 		then:
-			latch.await()
 			reporter.getSpans().size() == 1
-			spans.get().get(0) == spans.get().get(1)
+			def span = reporter.getSpans().first()
+			assertThat(span.tags()).containsKey("handler")
+			assertThat(span.tags()).containsKey("before_render")
+			assertThat(span.tags()).containsKey("after_render")
+			assertThat(span.tags()).containsValue("the_param")
 	}
 }
