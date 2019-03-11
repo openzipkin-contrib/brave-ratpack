@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,28 +14,35 @@
 package ratpack.zipkin
 
 import brave.SpanCustomizer
+import brave.Tracer
 import brave.http.HttpSampler
 import brave.propagation.B3Propagation
+import brave.sampler.Sampler
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.netty.handler.codec.http.HttpResponseStatus
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import ratpack.form.Form
+import ratpack.groovy.test.embed.GroovyEmbeddedApp
+import ratpack.guice.Guice
 import ratpack.handling.Context
 import ratpack.handling.Handler
+import ratpack.http.HttpMethod
+import ratpack.jackson.Jackson
 import ratpack.path.PathBinding
 import ratpack.zipkin.internal.ZipkinHttpClientImpl
 import ratpack.zipkin.support.B3PropagationHeaders
-import spock.lang.Unroll
-import zipkin2.reporter.Reporter
-
-import static org.assertj.core.api.Assertions.*
-
-import brave.sampler.Sampler
-import io.netty.handler.codec.http.HttpResponseStatus
-import ratpack.groovy.test.embed.GroovyEmbeddedApp
-import ratpack.guice.Guice
-import ratpack.http.HttpMethod
 import ratpack.zipkin.support.TestReporter
 import spock.lang.Specification
+import spock.lang.Unroll
 import zipkin2.Span
+import zipkin2.reporter.Reporter
+
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
+
+import static org.assertj.core.api.Assertions.assertThat
 
 class ServerTracingModuleSpec extends Specification {
 
@@ -572,5 +579,44 @@ class ServerTracingModuleSpec extends Specification {
             }
 		then:
             assertThat(reporter.getSpans()).isEmpty()
+	}
+
+	def 'Should provide the same trace context before and after parsing the request'() {
+		given:
+			def app = GroovyEmbeddedApp.of { server ->
+				server.registry(Guice.registry { binding ->
+					binding.module(ServerTracingModule.class, { config ->
+						config
+								.serviceName("embedded")
+								.sampler(Sampler.ALWAYS_SAMPLE)
+								.spanReporterV2(reporter)
+					})
+				}).handlers {
+					chain ->
+						chain.all { ctx ->
+							def tracer = ctx.get(Tracer)
+							tracer.currentSpan().tag("handler", "")
+
+							ctx.parse(Form).then { form ->
+								tracer.currentSpan().tag("before_render", form.get("param"))
+								ctx.render("ok")
+								tracer.currentSpan().tag("after_render", form.get("param"))
+							}
+						}
+				}
+			}
+		when:
+			app.test { t ->
+				t.request { spec ->
+					spec.post().body.text("param=the_param")
+				}
+			}
+		then:
+			reporter.getSpans().size() == 1
+			def span = reporter.getSpans().first()
+			assertThat(span.tags()).containsKey("handler")
+			assertThat(span.tags()).containsKey("before_render")
+			assertThat(span.tags()).containsKey("after_render")
+			assertThat(span.tags()).containsValue("the_param")
 	}
 }
