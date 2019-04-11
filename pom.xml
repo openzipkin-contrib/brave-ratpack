@@ -49,7 +49,7 @@
     <maven-failsafe-plugin.version>3.0.0-M2</maven-failsafe-plugin.version>
     <license-maven-plugin.version>3.0</license-maven-plugin.version>
 
-    <brave.version>5.1.5</brave.version>
+    <brave.version>5.6.3</brave.version>
     <ratpack.version>1.6.0</ratpack.version>
 
   </properties>
@@ -170,12 +170,6 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.12</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <version>3.9.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>

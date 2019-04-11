@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -13,25 +13,23 @@
  */
 package ratpack.zipkin.internal;
 
-import com.google.common.net.HttpHeaders;
+import brave.Span;
 import ratpack.path.PathBinding;
 import ratpack.zipkin.ServerRequest;
 import ratpack.zipkin.ServerResponse;
-import zipkin2.Endpoint;
 
 /**
  * This class is responsible for adapting Ratpack-specific request and responses
  * to something that brave.http.HttpServerParser can use to create the Span.
  */
 final class ServerHttpAdapter extends brave.http.HttpServerAdapter<ServerRequest, ServerResponse> {
-  @Override
-  public boolean parseClientAddress(final ServerRequest serverRequest,
-                                    final Endpoint.Builder builder) {
-    String forwardedFor = requestHeader(serverRequest, HttpHeaders.X_FORWARDED_FOR);
-    if (forwardedFor != null) {
-      return builder.parseIp(forwardedFor);
+
+  @Override public boolean parseClientIpAndPort(ServerRequest req, Span span) {
+    boolean result = super.parseClientIpAndPort(req, span);
+    if (!result) {
+      result = span.remoteIpAndPort(req.getRemoteAddress().getHost(), req.getRemoteAddress().getPort());
     }
-    return builder.parseIp(serverRequest.getRemoteAddress().getHostText());
+    return result;
   }
 
   @Override public String method(ServerRequest request) {

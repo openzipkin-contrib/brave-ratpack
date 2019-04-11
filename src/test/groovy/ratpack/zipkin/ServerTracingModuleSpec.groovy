@@ -18,8 +18,6 @@ import brave.Tracer
 import brave.http.HttpSampler
 import brave.propagation.B3Propagation
 import brave.sampler.Sampler
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.netty.handler.codec.http.HttpResponseStatus
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -29,7 +27,6 @@ import ratpack.guice.Guice
 import ratpack.handling.Context
 import ratpack.handling.Handler
 import ratpack.http.HttpMethod
-import ratpack.jackson.Jackson
 import ratpack.path.PathBinding
 import ratpack.zipkin.internal.ZipkinHttpClientImpl
 import ratpack.zipkin.support.B3PropagationHeaders
@@ -39,10 +36,8 @@ import spock.lang.Unroll
 import zipkin2.Span
 import zipkin2.reporter.Reporter
 
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicReference
-
 import static org.assertj.core.api.Assertions.assertThat
+import static ratpack.groovy.test.embed.GroovyEmbeddedApp.ratpack
 
 class ServerTracingModuleSpec extends Specification {
 
@@ -54,14 +49,14 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should initialize with default config'() {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
+			def app = ratpack {
+				bindings {
 					binding.module(ServerTracingModule.class)
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.render("foo")
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.render("foo")
+					}
 				}
 			}
 		expect:
@@ -70,9 +65,9 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should initialize with all the configs'() {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
@@ -80,11 +75,11 @@ class ServerTracingModuleSpec extends Specification {
 								.serverSampler(HttpSampler.TRACE_ID)
 								.spanReporterV2(Reporter.NOOP)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.render("foo")
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.render("foo")
+					}
 				}
 			}
 		expect:
@@ -93,19 +88,19 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should initialize with legacy NOOP Reporter'() {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
 								.spanReporterV2(zipkin.reporter.Reporter.NOOP)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.render("foo")
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.render("foo")
+					}
 				}
 			}
 		expect:
@@ -114,19 +109,19 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should collect server spans with Reporter'() {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.render("foo")
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.render("foo")
+					}
 				}
 			}
 		when:
@@ -141,19 +136,19 @@ class ServerTracingModuleSpec extends Specification {
 	@Unroll
 	def "Should collect spans with HTTP #method"(HttpMethod method) {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.render("foo")
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.render("foo")
+					}
 				}
 			}
 		when:
@@ -179,19 +174,19 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should join trace if B3 propagation headers present'() {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.render("foo")
-						}
+				}
+				handlers {
+					chain -> chain.all {
+						ctx -> ctx.render("foo")
+					}
 				}
 			}
 		when:
@@ -201,8 +196,8 @@ class ServerTracingModuleSpec extends Specification {
 						.headers { headers ->
 							headers
 									.add(B3PropagationHeaders.TRACE_ID.value, "0000000000000001")
-									.add(B3PropagationHeaders.PARENT_ID.value, "0000000000000001")
-									.add(B3PropagationHeaders.SPAN_ID.value, "0000000000000001")
+									.add(B3PropagationHeaders.PARENT_ID.value, "0000000000000002")
+									.add(B3PropagationHeaders.SPAN_ID.value, "0000000000000003")
 									.add(B3PropagationHeaders.SAMPLED.value, "1")
 					}
 				}
@@ -212,27 +207,27 @@ class ServerTracingModuleSpec extends Specification {
 			Span span = reporter.getSpans().get(0)
 			span.name() == "get"
 			span.traceId() == "0000000000000001"
-			span.parentId() == "0000000000000001"
-			span.id() == "0000000000000001"
+			span.parentId() == "0000000000000002"
+			span.id() == "0000000000000003"
 			span.kind() == Span.Kind.SERVER
 	}
 
 
 	def 'Should report span with http status code tag for 1xx (#status) responses'(HttpResponseStatus status) {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.response.status(status.code()).send()
-						}
+				}
+				handlers {
+					chain -> chain.all {
+						ctx -> ctx.response.status(status.code()).send()
+					}
 				}
 			}
 		when:
@@ -249,19 +244,19 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should report span with http status code tag for 3xx (#status) responses'(HttpResponseStatus status) {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.response.status(status.code()).send()
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.response.status(status.code()).send()
+					}
 				}
 			}
 		when:
@@ -285,19 +280,19 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should report span with http status code tag for 4xx (#status) responses'(HttpResponseStatus status) {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.response.status(status.code()).send()
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.response.status(status.code()).send()
+					}
 				}
 			}
 		when:
@@ -324,19 +319,19 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should report span with http status code tag for 5xx (#status) responses'(HttpResponseStatus status) {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.create(1f))
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.response.status(status.code()).send()
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.response.status(status.code()).send()
+					}
 				}
 			}
 		when:
@@ -359,19 +354,19 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should not collect spans with 0 pct. sampling'() {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.NEVER_SAMPLE)
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.render("foo")
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.render("foo")
+					}
 				}
 			}
 		when:
@@ -383,19 +378,19 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should collect spans with B3 header override sampling'() {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.NEVER_SAMPLE)
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all {
-							ctx -> ctx.render("foo")
-						}
+				}
+				handlers { chain ->
+					chain.all {
+						ctx -> ctx.render("foo")
+					}
 				}
 			}
 		when:
@@ -457,23 +452,23 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should customize current span'() {
 		given:
-		def app = GroovyEmbeddedApp.of { server ->
-			server.registry(Guice.registry { binding ->
-				binding.module(ServerTracingModule.class, { config ->
+		def app = ratpack {
+			bindings {
+				module(ServerTracingModule.class, { config ->
 					config
 							.serviceName("embedded")
 							.sampler(Sampler.create(1f))
 							.spanReporterV2(reporter)
 				})
-			}).handlers {
-				chain ->
-					chain.all { ctx ->
-						ctx.get(SpanCustomizer)
-								.tag("key1", "one")
-								.tag("key2", "two")
+			}
+			handlers { chain ->
+				chain.all { ctx ->
+					ctx.get(SpanCustomizer)
+							.tag("key1", "one")
+							.tag("key2", "two")
 
-						ctx.render("foo")
-					}
+					ctx.render("foo")
+				}
 			}
 		}
 		when:
@@ -490,9 +485,9 @@ class ServerTracingModuleSpec extends Specification {
 	}
 	def 'Should allow span name customization'() {
 		given:
-            def app = GroovyEmbeddedApp.of { server ->
-                server.registry(Guice.registry { binding ->
-                    binding.module(ServerTracingModule.class, { config ->
+            def app = ratpack {
+                bindings {
+                    module(ServerTracingModule.class, { config ->
                         config
                             .serviceName("embedded")
                             .sampler(Sampler.ALWAYS_SAMPLE)
@@ -507,14 +502,15 @@ class ServerTracingModuleSpec extends Specification {
 									.orElse(requestContext.path)
                             }
                         } )
-                    }) }).handlers {
-                    chain ->
-                        chain.get("say/:message", new Handler() {
-                            @Override
-                            void handle(final Context ctx) throws Exception {
-                                ctx.response.send("yo!")
-                            }
-                        })
+                    })
+				}
+				handlers { chain ->
+					chain.get("say/:message", new Handler() {
+						@Override
+						void handle(final Context ctx) throws Exception {
+							ctx.response.send("yo!")
+						}
+					})
                 }
             }
 		when:
@@ -529,22 +525,22 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should allow configuration of PropagationFactory'() {
 		given:
-            def app = GroovyEmbeddedApp.of { server ->
-                server.registry(Guice.registry { binding ->
-                    binding.module(ServerTracingModule.class, { config ->
+            def app = ratpack {
+                bindings {
+                    module(ServerTracingModule.class, { config ->
                         config
                                 .serviceName("embedded")
                                 .sampler(Sampler.ALWAYS_SAMPLE)
                                 .spanReporterV2(reporter)
 								.propagationFactory(B3Propagation.FACTORY)
-                    })}).handlers {
-                    chain ->
-                        chain.get("say/:message", new Handler() {
-                            @Override
-                            void handle(final Context ctx) throws Exception {
-                                ctx.response.send("yo!")
-                            }
-                        })
+                    })}
+				handlers { chain ->
+					chain.get("say/:message", new Handler() {
+						@Override
+						void handle(final Context ctx) throws Exception {
+							ctx.response.send("yo!")
+						}
+					})
                 }
             }
 		when:
@@ -556,23 +552,25 @@ class ServerTracingModuleSpec extends Specification {
 	}
 
 	def 'Should allow configuration of v1 NOOP Reporter'() {
-		given: def app = GroovyEmbeddedApp.of { server ->
-                server.registry(Guice.registry { binding ->
-                    binding.module(ServerTracingModule.class, { config ->
-                        config
-                                .serviceName("embedded")
-                                .sampler(Sampler.ALWAYS_SAMPLE)
-                                .spanReporterV1(zipkin.reporter.Reporter.NOOP)
-                    })}).handlers {
-                    chain ->
-                        chain.get("say/:message", new Handler() {
-                            @Override
-                            void handle(final Context ctx) throws Exception {
-                                ctx.response.send("yo!")
-                            }
-                        })
-                }
-            }
+		given:
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
+						config
+								.serviceName("embedded")
+								.sampler(Sampler.ALWAYS_SAMPLE)
+								.spanReporterV1(zipkin.reporter.Reporter.NOOP)
+					})
+				}
+				handlers { chain ->
+					chain.get("say/:message", new Handler() {
+						@Override
+						void handle(final Context ctx) throws Exception {
+							ctx.response.send("yo!")
+						}
+					})
+				}
+			}
 		when:
             app.test { t ->
                 t.get("say/hello")
@@ -583,26 +581,26 @@ class ServerTracingModuleSpec extends Specification {
 
 	def 'Should provide the same trace context before and after parsing the request'() {
 		given:
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.ALWAYS_SAMPLE)
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
-					chain ->
-						chain.all { ctx ->
-							def tracer = ctx.get(Tracer)
-							tracer.currentSpan().tag("handler", "")
+				}
+				handlers { chain ->
+					chain.all { ctx ->
+						def tracer = ctx.get(Tracer)
+						tracer.currentSpan().tag("handler", "")
 
-							ctx.parse(Form).then { form ->
-								tracer.currentSpan().tag("before_render", form.get("param"))
-								ctx.render("ok")
-								tracer.currentSpan().tag("after_render", form.get("param"))
-							}
+						ctx.parse(Form).then { form ->
+							tracer.currentSpan().tag("before_render", form.get("param"))
+							ctx.render("ok")
+							tracer.currentSpan().tag("after_render", form.get("param"))
 						}
+					}
 				}
 			}
 		when:

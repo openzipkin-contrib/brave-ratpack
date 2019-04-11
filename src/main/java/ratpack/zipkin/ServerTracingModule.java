@@ -84,29 +84,24 @@ public class ServerTracingModule extends ConfigurableModule<ServerTracingModule.
 
   @Provides @Singleton
   public HttpTracing getHttpTracing(final Config config, final ServerConfig serverConfig) {
-    Tracing tracing = Tracing.newBuilder()
+    Tracing.Builder builder = Tracing.newBuilder()
                              .sampler(config.sampler)
                              .currentTraceContext(new RatpackCurrentTraceContext())
-                             .endpoint(buildEndpoint(config.serviceName, serverConfig.getPort(),
-                                 serverConfig.getAddress()))
+                             .localServiceName(config.serviceName)
+                             .localPort(serverConfig.getPort())
                              .spanReporter(config.spanReporter)
-                             .propagationFactory(config.propagationFactory)
-                             .build();
-    return HttpTracing.newBuilder(tracing)
+                             .propagationFactory(config.propagationFactory);
+
+    if (serverConfig.getAddress() != null) {
+      builder = builder.localIp(serverConfig.getAddress().getHostAddress());
+    }
+
+    return HttpTracing.newBuilder(builder.build())
                       .clientParser(config.clientParser)
                       .serverParser(config.serverParser)
                       .serverSampler(config.serverSampler)
                       .clientSampler(config.clientSampler)
                       .build();
-  }
-
-  private static Endpoint buildEndpoint(String serviceName, int port, @Nullable InetAddress configAddress) {
-    Endpoint.Builder builder = Endpoint.newBuilder();
-    if (!builder.parseIp(configAddress)) {
-      // TODO: shade brave.internal.Platform
-      builder = brave.internal.Platform.get().endpoint().toBuilder();
-    }
-    return builder.serviceName(serviceName).port(port).build();
   }
 
   /**
