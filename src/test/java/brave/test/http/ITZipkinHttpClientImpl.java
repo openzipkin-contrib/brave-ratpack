@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -11,8 +11,9 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package brave.http;
+package brave.test.http;
 
+import brave.http.HttpTracing;
 import brave.sampler.Sampler;
 import brave.test.http.ITHttpAsyncClient;
 import io.netty.buffer.UnpooledByteBufAllocator;

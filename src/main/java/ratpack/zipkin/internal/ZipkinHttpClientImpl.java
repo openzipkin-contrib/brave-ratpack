@@ -24,14 +24,6 @@ import brave.propagation.ThreadLocalSpan;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContextOrSamplingFlags;
 import io.netty.buffer.ByteBufAllocator;
-import java.net.URI;
-import java.time.Duration;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
-import javax.inject.Inject;
-import javax.net.ssl.SSLContext;
-
 import io.netty.handler.ssl.SslContext;
 import ratpack.exec.Promise;
 import ratpack.exec.Result;
@@ -39,7 +31,19 @@ import ratpack.func.Action;
 import ratpack.func.Function;
 import ratpack.http.HttpMethod;
 import ratpack.http.MutableHeaders;
-import ratpack.http.client.*;
+import ratpack.http.client.HttpClient;
+import ratpack.http.client.HttpClientSpec;
+import ratpack.http.client.ReceivedResponse;
+import ratpack.http.client.RequestSpec;
+import ratpack.http.client.StreamedResponse;
+
+import javax.inject.Inject;
+import javax.net.ssl.SSLContext;
+import java.net.URI;
+import java.time.Duration;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 
 /**
  * Decorator that adds Zipkin client logging around {@link HttpClient}.
@@ -76,6 +80,11 @@ public final class ZipkinHttpClientImpl implements HttpClient {
     @Override
     public int getPoolQueueSize() {
         return delegate.getPoolQueueSize();
+    }
+
+    @Override
+    public Duration getIdleTimeout() {
+        return delegate.getIdleTimeout();
     }
 
     @Override
