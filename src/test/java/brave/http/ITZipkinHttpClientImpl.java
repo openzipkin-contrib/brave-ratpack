@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -22,12 +22,14 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import ratpack.exec.Execution;
+import ratpack.exec.Promise;
 import ratpack.http.client.HttpClient;
 import ratpack.server.ServerConfig;
 import ratpack.test.exec.ExecHarness;
 import ratpack.util.Exceptions;
+import ratpack.zipkin.ClientTracingInterceptor;
+import ratpack.zipkin.internal.DefaultClientTracingInterceptor;
 import ratpack.zipkin.internal.RatpackCurrentTraceContext;
-import ratpack.zipkin.internal.ZipkinHttpClientImpl;
 
 public class ITZipkinHttpClientImpl extends ITHttpAsyncClient<HttpClient> {
 
@@ -50,11 +52,16 @@ public class ITZipkinHttpClientImpl extends ITHttpAsyncClient<HttpClient> {
     }
 
     @Override protected HttpClient newClient(int port) {
-        return Exceptions.uncheck(() -> new ZipkinHttpClientImpl( HttpClient.of(s -> s
-            .poolSize(0)
-            .byteBufAllocator(UnpooledByteBufAllocator.DEFAULT)
-            .maxContentLength(ServerConfig.DEFAULT_MAX_CONTENT_LENGTH)
-        ), httpTracing));
+        return Exceptions.uncheck(() -> harness.yield(e -> {
+            ClientTracingInterceptor clientTracingInterceptor = new DefaultClientTracingInterceptor(httpTracing, e);
+            return Promise.value(HttpClient.of(s -> s
+                .poolSize(0)
+                .requestIntercept(clientTracingInterceptor::request)
+                .responseIntercept(clientTracingInterceptor::response)
+                .errorIntercept(clientTracingInterceptor::error)
+                .byteBufAllocator(UnpooledByteBufAllocator.DEFAULT)
+                .maxContentLength(ServerConfig.DEFAULT_MAX_CONTENT_LENGTH)));
+        }).getValue());
     }
 
     @Override protected void closeClient(HttpClient client) throws IOException {
@@ -63,6 +70,9 @@ public class ITZipkinHttpClientImpl extends ITHttpAsyncClient<HttpClient> {
 
     @Override protected void get(HttpClient client, String pathIncludingQuery) throws Exception {
         harness.yield(e -> client.get(URI.create(url(pathIncludingQuery)))).getValueOrThrow();
+        // Small delay to ensure the response interceptor is invoked before this method exits.
+        // This is needed for inherited test `redirect`
+        Thread.sleep(1);
     }
 
     @Override protected void post(HttpClient client, String pathIncludingQuery, String body)
@@ -74,10 +84,10 @@ public class ITZipkinHttpClientImpl extends ITHttpAsyncClient<HttpClient> {
         ).getValueOrThrow();
     }
 
-    @Override protected void getAsync(HttpClient client, String pathIncludingQuery)
-        throws Exception {
-        harness.yield(e -> client.requestStream(URI.create(url(pathIncludingQuery)), r -> {
-        })).getValueOrThrow();
+    @Override protected void getAsync(HttpClient client, String pathIncludingQuery) throws Exception {
+        harness.yield(e ->
+            client.get(URI.create(url(pathIncludingQuery)))
+        ).getValueOrThrow();
     }
 
     @Override @Test(expected = AssertionError.class)
