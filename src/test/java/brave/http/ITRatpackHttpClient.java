@@ -24,6 +24,7 @@ import org.junit.Test;
 import ratpack.exec.Execution;
 import ratpack.exec.Promise;
 import ratpack.http.client.HttpClient;
+import ratpack.http.client.RequestSpec;
 import ratpack.server.ServerConfig;
 import ratpack.test.exec.ExecHarness;
 import ratpack.util.Exceptions;
@@ -31,7 +32,7 @@ import ratpack.zipkin.ClientTracingInterceptor;
 import ratpack.zipkin.internal.DefaultClientTracingInterceptor;
 import ratpack.zipkin.internal.RatpackCurrentTraceContext;
 
-public class ITZipkinHttpClientImpl extends ITHttpAsyncClient<HttpClient> {
+public class ITRatpackHttpClient extends ITHttpAsyncClient<HttpClient> {
 
     private static ExecHarness harness;
 
@@ -71,7 +72,8 @@ public class ITZipkinHttpClientImpl extends ITHttpAsyncClient<HttpClient> {
     @Override protected void get(HttpClient client, String pathIncludingQuery) throws Exception {
         harness.yield(e -> client.get(URI.create(url(pathIncludingQuery)))).getValueOrThrow();
         // Small delay to ensure the response interceptor is invoked before this method exits.
-        // This is needed for inherited test `redirect`
+        // This is needed for inherited test `redirect` where Ratpack `getValueOrThrow()` exits
+        // before the final redirect handler is invoked.
         Thread.sleep(1);
     }
 
@@ -86,8 +88,8 @@ public class ITZipkinHttpClientImpl extends ITHttpAsyncClient<HttpClient> {
 
     @Override protected void getAsync(HttpClient client, String pathIncludingQuery) throws Exception {
         harness.yield(e ->
-            client.get(URI.create(url(pathIncludingQuery)))
-        ).getValueOrThrow();
+            client.requestStream(URI.create(url(pathIncludingQuery)), RequestSpec::get)
+        );
     }
 
     @Override @Test(expected = AssertionError.class)

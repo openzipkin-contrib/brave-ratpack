@@ -14,9 +14,10 @@
 package ratpack.zipkin.internal;
 
 import brave.http.HttpClientAdapter;
+import ratpack.http.client.HttpResponse;
 import ratpack.http.client.RequestSpec;
 
-public class ClientHttpAdapter extends HttpClientAdapter<RequestSpec, Integer> {
+public class ClientHttpAdapter extends HttpClientAdapter<RequestSpec, HttpResponse> {
 
   @Override
   public String method(RequestSpec requestSpec) {
@@ -34,7 +35,8 @@ public class ClientHttpAdapter extends HttpClientAdapter<RequestSpec, Integer> {
   }
 
   @Override
-  public Integer statusCode(Integer status) {
-    return status;
+  public Integer statusCode(HttpResponse response) {
+    return response.getStatusCode();
   }
+
 }

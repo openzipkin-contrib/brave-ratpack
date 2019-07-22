@@ -24,21 +24,25 @@ import ratpack.http.MutableHeaders;
 import ratpack.http.client.HttpResponse;
 import ratpack.http.client.ReceivedResponse;
 import ratpack.http.client.RequestSpec;
+import ratpack.registry.MutableRegistry;
 import ratpack.zipkin.ClientTracingInterceptor;
 
 import javax.inject.Inject;
+import java.util.Iterator;
 
 public class DefaultClientTracingInterceptor implements ClientTracingInterceptor {
 
   private static final TypeToken<Span> SpanToken = new TypeToken<Span>() {};
 
-  private final HttpClientHandler<RequestSpec, Integer> handler;
+  private final HttpClientHandler<RequestSpec, HttpResponse> handler;
+  private final HttpTracing httpTracing;
   private final TraceContext.Injector<MutableHeaders> injector;
   private final Execution execution;
 
   @Inject
   public DefaultClientTracingInterceptor(final HttpTracing httpTracing, final Execution execution) {
     this.execution = execution;
+    this.httpTracing = httpTracing;
     this.handler = HttpClientHandler.create(httpTracing, new ClientHttpAdapter());
     this.injector = httpTracing.tracing().propagation().injector(MutableHeaders::set);
   }
@@ -46,25 +50,56 @@ public class DefaultClientTracingInterceptor implements ClientTracingInterceptor
   @Override
   public void request(RequestSpec spec) {
     final Span span = this.handler.handleSend(injector, spec.getHeaders(), spec);
-    this.execution.add(SpanToken, span);
+    this.execution.add(span);
     spec.onRedirect(res -> redirectHandler(res, span));
   }
 
+  // On redirects the request method is called before the redirect handler. If the Span was stored
+  // in the execution it will be overwritten by the redirecting request.  For this reason we
+  // need to pass the original span along to complete the request handling here instead.
   private Action<? super RequestSpec> redirectHandler(ReceivedResponse response, Span span) {
-    return (spec) -> handler.handleReceive(response.getStatusCode(), null, span);
+    return (spec) -> {
+      handler.handleReceive(response, null, span);
+
+      Iterator<? extends Span> stack = this.execution.getAll(Span.class).iterator();
+
+      this.execution.remove(Span.class);
+
+      while(stack.hasNext()) {
+        Span next = stack.next();
+        if (next.context().spanId() != span.context().spanId()) {
+          this.execution.add(next);
+        }
+      }
+    };
   }
 
   @Override
   public void response(HttpResponse response) {
-    this.execution
-        .maybeGet(SpanToken)
-        .ifPresent(s -> this.handler.handleReceive(response.getStatusCode(), null, s));
+
+    Iterator<? extends Span> stack = this.execution.getAll(Span.class).iterator();
+
+    if (stack.hasNext()) {
+      Span last = stack.next();
+      this.handler.handleReceive(response, null, last);
+      this.execution.remove(Span.class);
+      while(stack.hasNext()) {
+        this.execution.add(stack.next());
+      }
+    }
   }
 
   @Override
   public void error(Throwable e) {
-    this.execution
-        .maybeGet(SpanToken)
-        .ifPresent(s -> this.handler.handleReceive(null, e, s));
+    Iterator<? extends Span> stack = this.execution.getAll(Span.class).iterator();
+
+    if (stack.hasNext()) {
+      Span last = stack.next();
+      this.handler.handleReceive(null, e, last);
+      this.execution.remove(Span.class);
+      while(stack.hasNext()) {
+        this.execution.add(stack.next());
+      }
+    }
   }
 }
