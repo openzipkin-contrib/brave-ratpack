@@ -14,12 +14,16 @@
 package ratpack.zipkin.internal;
 
 
+import brave.Span;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.TraceContext;
+
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.slf4j.MDC;
 import ratpack.exec.ExecInitializer;
 import ratpack.exec.Execution;
+import ratpack.exec.ExecutionRef;
 import ratpack.registry.MutableRegistry;
 
 public final class RatpackCurrentTraceContext extends CurrentTraceContext {
@@ -112,10 +116,15 @@ public final class RatpackCurrentTraceContext extends CurrentTraceContext {
 
     @Override
     public void init(Execution execution) {
-      execution
-        .maybeParent()
+      Optional<ExecutionRef> maybeParent =  execution.maybeParent();
+
+      maybeParent
         .flatMap(parent -> parent.maybeGet(TraceContextHolder.class))
         .ifPresent(execution::add);
+
+      maybeParent
+          .flatMap(parent -> parent.maybeGet(DefaultClientTracingInterceptor.ClientSpanHolder.class))
+          .ifPresent(execution::add);
     }
   }
 

@@ -59,8 +59,8 @@ public class ServerTracingModule extends ConfigurableModule<ServerTracingModule.
         getProvider(ClientTracingInterceptor.class);
 
     Provider<HttpClient> httpClientProvider = () ->
-        Exceptions.uncheck(() ->
-          getProvider(HttpClient.class).get().copyWith((s) -> {
+        // getProvider(HttpClient.class).get().copyWith(
+        Exceptions.uncheck(() -> HttpClient.of((s) -> {
             ClientTracingInterceptor ic = clientTracingInterceptorProvider.get();
             s.requestIntercept(ic::request);
             s.responseIntercept(ic::response);

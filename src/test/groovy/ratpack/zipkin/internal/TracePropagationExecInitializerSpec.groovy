@@ -42,6 +42,7 @@ class TracePropagationExecInitializerSpec extends Specification {
         then:
             1 * execution.maybeParent() >> Optional.of(parent)
             1 * parent.maybeGet(TraceContextHolder.class) >> Optional.of(parentContextHolder)
+            1 * parent.maybeGet(DefaultClientTracingInterceptor.ClientSpanHolder.class) >> Optional.empty()
             1 * execution.add(parentContextHolder)
             0 * _
     }
@@ -67,6 +68,7 @@ class TracePropagationExecInitializerSpec extends Specification {
         then:
             1 * execution.maybeParent() >> Optional.of(parent)
             1 * parent.maybeGet(TraceContextHolder.class) >> Optional.empty()
+            1 * parent.maybeGet(DefaultClientTracingInterceptor.ClientSpanHolder.class) >> Optional.empty()
             0 * _
     }
 

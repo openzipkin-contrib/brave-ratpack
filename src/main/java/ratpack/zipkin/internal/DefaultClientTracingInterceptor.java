@@ -17,89 +17,95 @@ import brave.Span;
 import brave.http.HttpClientHandler;
 import brave.http.HttpTracing;
 import brave.propagation.TraceContext;
-import com.google.common.reflect.TypeToken;
 import ratpack.exec.Execution;
-import ratpack.func.Action;
 import ratpack.http.MutableHeaders;
 import ratpack.http.client.HttpResponse;
-import ratpack.http.client.ReceivedResponse;
 import ratpack.http.client.RequestSpec;
-import ratpack.registry.MutableRegistry;
 import ratpack.zipkin.ClientTracingInterceptor;
 
 import javax.inject.Inject;
-import java.util.Iterator;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 public class DefaultClientTracingInterceptor implements ClientTracingInterceptor {
 
-  private static final TypeToken<Span> SpanToken = new TypeToken<Span>() {};
-
   private final HttpClientHandler<RequestSpec, HttpResponse> handler;
-  private final HttpTracing httpTracing;
   private final TraceContext.Injector<MutableHeaders> injector;
-  private final Execution execution;
+  private final Supplier<Optional<Execution>> registrySupplier;
 
   @Inject
-  public DefaultClientTracingInterceptor(final HttpTracing httpTracing, final Execution execution) {
-    this.execution = execution;
-    this.httpTracing = httpTracing;
+  public DefaultClientTracingInterceptor(final HttpTracing httpTracing) {
+    this(httpTracing, Execution::currentOpt);
+  }
+
+  public DefaultClientTracingInterceptor(final HttpTracing httpTracing, final Supplier<Optional<Execution>> registry) {
     this.handler = HttpClientHandler.create(httpTracing, new ClientHttpAdapter());
     this.injector = httpTracing.tracing().propagation().injector(MutableHeaders::set);
+    this.registrySupplier = registry;
   }
 
   @Override
   public void request(RequestSpec spec) {
-    final Span span = this.handler.handleSend(injector, spec.getHeaders(), spec);
-    this.execution.add(span);
-    spec.onRedirect(res -> redirectHandler(res, span));
-  }
-
-  // On redirects the request method is called before the redirect handler. If the Span was stored
-  // in the execution it will be overwritten by the redirecting request.  For this reason we
-  // need to pass the original span along to complete the request handling here instead.
-  private Action<? super RequestSpec> redirectHandler(ReceivedResponse response, Span span) {
-    return (spec) -> {
-      handler.handleReceive(response, null, span);
-
-      Iterator<? extends Span> stack = this.execution.getAll(Span.class).iterator();
-
-      this.execution.remove(Span.class);
-
-      while(stack.hasNext()) {
-        Span next = stack.next();
-        if (next.context().spanId() != span.context().spanId()) {
-          this.execution.add(next);
-        }
-      }
-    };
+    registrySupplier.get()
+        .ifPresent((execution -> {
+          final Span span = this.handler.handleSend(injector, spec.getHeaders(), spec);
+          final ClientSpanHolder holder = new ClientSpanHolder(span);
+          execution.add(holder);
+        }));
   }
 
   @Override
   public void response(HttpResponse response) {
+    registrySupplier.get()
+        .ifPresent(execution -> {
+          execution
+              .maybeGet(ClientSpanHolder.class)
+              .ifPresent((s) -> {
+                Iterable<? extends ClientSpanHolder> i = execution.getAll(ClientSpanHolder.class);
+                execution.remove(ClientSpanHolder.class);
+                this.handler.handleReceive(response, null, s.span);
+                // special case code for tests to ensure the shared test execution doesn't clear out
+                // other client spans that are still in flight.
+                i.forEach((csh) -> {
+                  if (csh != s) {
+                    execution.add(csh);
+                  }
+                });
+              });
+    });
 
-    Iterator<? extends Span> stack = this.execution.getAll(Span.class).iterator();
-
-    if (stack.hasNext()) {
-      Span last = stack.next();
-      this.handler.handleReceive(response, null, last);
-      this.execution.remove(Span.class);
-      while(stack.hasNext()) {
-        this.execution.add(stack.next());
-      }
-    }
   }
 
   @Override
   public void error(Throwable e) {
-    Iterator<? extends Span> stack = this.execution.getAll(Span.class).iterator();
+    registrySupplier.get()
+        .ifPresent(execution -> {
+          execution
+              .maybeGet(ClientSpanHolder.class)
+              .ifPresent((s) -> {
+                Iterable<? extends ClientSpanHolder> i = execution.getAll(ClientSpanHolder.class);
+                execution.remove(ClientSpanHolder.class);
+                this.handler.handleReceive(null, e, s.span);
+                // special case code for tests to ensure the shared test execution doesn't clear out
+                // other client spans that are still in flight.
+                i.forEach((csh) -> {
+                  if (csh != s) {
+                    execution.add(csh);
+                  }
+                });
+              });
+        });
+  }
 
-    if (stack.hasNext()) {
-      Span last = stack.next();
-      this.handler.handleReceive(null, e, last);
-      this.execution.remove(Span.class);
-      while(stack.hasNext()) {
-        this.execution.add(stack.next());
-      }
+  public static class ClientSpanHolder {
+    private Span span;
+
+    public ClientSpanHolder(Span span) {
+      this.span = span;
+    }
+
+    Span getSpan() {
+      return this.span;
     }
   }
 }

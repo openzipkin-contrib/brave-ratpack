@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit
 
 import static org.assertj.core.api.Assertions.assertThat
 
-class ZipkinHttpClientImplSpec extends Specification {
+class RatpackHttpClientSpec extends Specification {
 
 	MockWebServer webServer
 	URI uri
@@ -96,7 +96,7 @@ class ZipkinHttpClientImplSpec extends Specification {
 				.localServiceName("embedded")
 				.build())
 
-		ClientTracingInterceptor clientTracingInterceptor = new DefaultClientTracingInterceptor(httpTracing, e)
+		ClientTracingInterceptor clientTracingInterceptor = new DefaultClientTracingInterceptor(httpTracing, {-> Optional.of(e)})
 
 		zipkinHttpClient = HttpClient.of { spec -> spec
 				.poolSize(0)
