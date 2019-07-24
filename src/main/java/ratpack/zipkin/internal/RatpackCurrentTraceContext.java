@@ -122,6 +122,9 @@ public final class RatpackCurrentTraceContext extends CurrentTraceContext {
         .flatMap(parent -> parent.maybeGet(TraceContextHolder.class))
         .ifPresent(execution::add);
 
+      // Copies forward the HTTP Client instrumentation Span.
+      // This is important since the interceptor execution is forked between
+      // the request and the response handling.
       maybeParent
           .flatMap(parent -> parent.maybeGet(DefaultClientTracingInterceptor.ClientSpanHolder.class))
           .ifPresent(execution::add);
