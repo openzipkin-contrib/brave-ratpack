@@ -22,13 +22,12 @@ import io.netty.handler.codec.http.HttpResponseStatus
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import ratpack.form.Form
-import ratpack.groovy.test.embed.GroovyEmbeddedApp
-import ratpack.guice.Guice
 import ratpack.handling.Context
 import ratpack.handling.Handler
 import ratpack.http.HttpMethod
+import ratpack.http.client.HttpClient
 import ratpack.path.PathBinding
-import ratpack.zipkin.internal.ZipkinHttpClientImpl
+
 import ratpack.zipkin.support.B3PropagationHeaders
 import ratpack.zipkin.support.TestReporter
 import spock.lang.Specification
@@ -414,19 +413,26 @@ class ServerTracingModuleSpec extends Specification {
 			webServer.enqueue(new MockResponse().setResponseCode(200))
 			def url = webServer.url("/")
 		and: 'a handler that uses http client to call another service'
-			def app = GroovyEmbeddedApp.of { server ->
-				server.registry(Guice.registry { binding ->
-					binding.module(ServerTracingModule.class, { config ->
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class, { config ->
 						config
 								.serviceName("embedded")
 								.sampler(Sampler.ALWAYS_SAMPLE)
 								.spanReporterV2(reporter)
 					})
-				}).handlers {
+				}
+				handlers {
 					chain ->
 						chain.all {
 							ctx ->
-								def client = ctx.get(ZipkinHttpClientImpl.class)
+								// this reconfiguration can be avoided if we can lookup a binding with an annotation.
+								def ic = ctx.get(ClientTracingInterceptor.class)
+								def client = ctx.get(HttpClient.class).copyWith({ s->
+									s.requestIntercept(ic.&request)
+									s.responseIntercept(ic.&response)
+									s.errorIntercept(ic.&error)
+								})
 								client.get(url.url().toURI())
 									.then{ resp -> ctx.render("Got response from client: " + resp.getStatusCode()) }
 						}

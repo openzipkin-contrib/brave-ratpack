@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -11,27 +11,17 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package ratpack.zipkin.support
+package ratpack.zipkin;
 
-import zipkin2.Span
-import zipkin2.reporter.Reporter
+import ratpack.http.client.HttpResponse;
+import ratpack.http.client.RequestSpec;
 
-import java.util.concurrent.ConcurrentLinkedDeque
+public interface ClientTracingInterceptor {
 
-class TestReporter implements Reporter<Span> {
+  void request(RequestSpec spec);
 
-	private final ConcurrentLinkedDeque<Span> spans = new ConcurrentLinkedDeque<>()
+  void response(HttpResponse response);
 
-	@Override
-	void report(Span span) {
-		spans.add(span)
-	}
+  void error(Throwable e);
 
-	List<Span> getSpans() {
-		return spans.asImmutable().toList()
-	}
-
-	void reset() {
-		spans.clear()
-	}
 }

@@ -28,16 +28,17 @@ import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
-import ratpack.api.Nullable;
 import ratpack.guice.ConfigurableModule;
 import ratpack.handling.HandlerDecorator;
 import ratpack.http.client.HttpClient;
 import ratpack.server.ServerConfig;
-import ratpack.zipkin.internal.*;
-import zipkin2.Endpoint;
+import ratpack.util.Exceptions;
+import ratpack.zipkin.internal.DefaultClientTracingInterceptor;
+import ratpack.zipkin.internal.DefaultServerTracingHandler;
+import ratpack.zipkin.internal.RatpackCurrentTraceContext;
+import ratpack.zipkin.internal.RatpackHttpServerParser;
 import zipkin2.Span;
 import zipkin2.reporter.Reporter;
-import java.net.InetAddress;
 
 /**
  * Module for Zipkin distributed tracing.
@@ -50,11 +51,27 @@ public class ServerTracingModule extends ConfigurableModule<ServerTracingModule.
         .to(DefaultServerTracingHandler.class)
         .in(Singleton.class);
 
-    bind(HttpClient.class).annotatedWith(Zipkin.class)
-        .to(ZipkinHttpClientImpl.class)
+    bind(ClientTracingInterceptor.class)
+        .to(DefaultClientTracingInterceptor.class)
         .in(Singleton.class);
 
-    bind(ZipkinHttpClientImpl.class);
+    Provider<ClientTracingInterceptor> clientTracingInterceptorProvider =
+        getProvider(ClientTracingInterceptor.class);
+
+    Provider<HttpClient> httpClientProvider = () ->
+        // getProvider(HttpClient.class).get().copyWith(
+        Exceptions.uncheck(() -> HttpClient.of((s) -> {
+            ClientTracingInterceptor ic = clientTracingInterceptorProvider.get();
+            s.requestIntercept(ic::request);
+            s.responseIntercept(ic::response);
+            s.errorIntercept(ic::error);
+          })
+        );
+
+    bind(HttpClient.class)
+        .annotatedWith(Zipkin.class)
+        .toProvider(httpClientProvider)
+        .in(Singleton.class);
 
     bind(RatpackCurrentTraceContext.TracingPropagationExecInitializer.class)
             .in(Singleton.class);

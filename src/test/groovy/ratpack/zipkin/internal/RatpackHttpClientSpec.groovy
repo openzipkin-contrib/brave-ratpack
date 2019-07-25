@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -15,13 +15,16 @@ package ratpack.zipkin.internal
 
 import brave.Tracing
 import brave.http.HttpTracing
+import brave.propagation.TraceContext
 import brave.sampler.Sampler
 import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.handler.codec.http.HttpResponseStatus
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+import org.assertj.core.api.Assertions
 import ratpack.exec.Execution
+import ratpack.exec.Promise
 import ratpack.func.Action
 import ratpack.http.HttpMethod
 import ratpack.http.client.HttpClient
@@ -29,23 +32,31 @@ import ratpack.http.client.RequestSpec
 import ratpack.http.client.StreamedResponse
 import ratpack.server.ServerConfig
 import ratpack.test.exec.ExecHarness
+import ratpack.util.Exceptions
+import ratpack.zipkin.ClientTracingInterceptor
 import ratpack.zipkin.support.TestReporter
 import spock.lang.AutoCleanup
 import spock.lang.Specification
 import spock.lang.Unroll
+import zipkin2.Annotation
 import zipkin2.Span
+
+import java.util.concurrent.BlockingQueue
+import java.util.concurrent.LinkedBlockingDeque
+import java.util.concurrent.TimeUnit
 
 import static org.assertj.core.api.Assertions.assertThat
 
-class ZipkinHttpClientImplSpec extends Specification {
+class RatpackHttpClientSpec extends Specification {
 
 	MockWebServer webServer
 	URI uri
 	@AutoCleanup
 	ExecHarness harness = ExecHarness.harness()
+	HttpTracing httpTracing
 
-	ZipkinHttpClientImpl zipkinHttpClient
-	TestReporter reporter
+	HttpClient zipkinHttpClient
+	BlockingQueue<Span> spans = new LinkedBlockingDeque<>()
 
 	Action<? super RequestSpec> action = Action.noop()
 
@@ -53,24 +64,48 @@ class ZipkinHttpClientImplSpec extends Specification {
 		webServer = new MockWebServer()
 		webServer.start()
 		uri = webServer.url("/").url().toURI()
-		reporter = new TestReporter()
 	}
 
 	def cleanup() {
 		webServer.shutdown()
 	}
 
+	Span takeSpan() {
+		Span result = this.spans.poll(3L, TimeUnit.SECONDS)
+		assertThat(result).withFailMessage("", new Object[0]).isNotNull()
+		assertThat(result.annotations().find {v -> v.value() == "context.leak"} == null)
+		return result
+	}
+
 	void harnessSetup(Execution e) {
-		HttpTracing httpTracing = HttpTracing.create(Tracing.newBuilder()
+
+		httpTracing = HttpTracing.create(Tracing.newBuilder()
 				.currentTraceContext(new RatpackCurrentTraceContext({ -> e}))
-				.spanReporter(reporter).sampler(Sampler.ALWAYS_SAMPLE)
+				.spanReporter({ s ->
+					TraceContext current = this.httpTracing.tracing().currentTraceContext().get()
+					boolean contextLeak = false;
+					if (current != null && current.spanIdString() == s.id()) {
+						s = s.toBuilder().addAnnotation(s.timestampAsLong(), "context.leak").build()
+						contextLeak = true
+					}
+					this.spans.add(s)
+					if (contextLeak) {
+						throw new AssertionError("context.leak on " + Thread.currentThread().getName())
+					}
+				}).sampler(Sampler.ALWAYS_SAMPLE)
 				.localServiceName("embedded")
 				.build())
 
-		zipkinHttpClient = new ZipkinHttpClientImpl(HttpClient.of { s ->
-			s.poolSize(0)
-			 .byteBufAllocator(UnpooledByteBufAllocator.DEFAULT)
-			  .maxContentLength(ServerConfig.DEFAULT_MAX_CONTENT_LENGTH)}, httpTracing)
+		ClientTracingInterceptor clientTracingInterceptor = new DefaultClientTracingInterceptor(httpTracing, {-> Optional.of(e)})
+
+		zipkinHttpClient = HttpClient.of { spec -> spec
+				.poolSize(0)
+				.requestIntercept(clientTracingInterceptor.&request)
+				.responseIntercept(clientTracingInterceptor.&response)
+				.errorIntercept(clientTracingInterceptor.&error)
+				.byteBufAllocator(UnpooledByteBufAllocator.DEFAULT)
+				.maxContentLength(ServerConfig.DEFAULT_MAX_CONTENT_LENGTH)
+		}
 	}
 
 	@Unroll
@@ -83,8 +118,7 @@ class ZipkinHttpClientImplSpec extends Specification {
 				zipkinHttpClient.request(uri, {spec -> spec.method(method)})
 			}
 		then:
-			reporter.spans.size() == 1
-			Span span = reporter.spans.get(0)
+			Span span = takeSpan()
 			span.name() == method.name.toLowerCase()
 		and: "should contain client span"
 			assertThat(span.kind() == Span.Kind.CLIENT)
@@ -112,8 +146,7 @@ class ZipkinHttpClientImplSpec extends Specification {
 			}
 
 		then:
-			reporter.spans.size() == 1
-			Span span = reporter.spans.get(0)
+			Span span = takeSpan()
 			span.name == "get"
 
 		then:
@@ -130,7 +163,7 @@ class ZipkinHttpClientImplSpec extends Specification {
 				zipkinHttpClient.get(uri, action)
 			}.value
 		then:
-			Span span = reporter.spans.get(0)
+			Span span = takeSpan()
 		and: "should contain method and path tag but not status code tag"
 			assertThat(span.tags()).containsOnlyKeys("http.method", "http.path")
 		where:
@@ -153,7 +186,7 @@ class ZipkinHttpClientImplSpec extends Specification {
 				zipkinHttpClient.post(uri, action)
 			}
 		then:
-			Span span = reporter.spans.get(0)
+			Span span = takeSpan()
 		and: "should contain http status code, path and error tags"
 			assertThat(span.tags()).containsOnlyKeys("http.method", "http.path", "http.status_code", "error")
 		where:
@@ -180,7 +213,7 @@ class ZipkinHttpClientImplSpec extends Specification {
 				zipkinHttpClient.get(uri, action)
 			}
 		then:
-			Span span = reporter.spans.get(0)
+			Span span = takeSpan()
 		and: "should contain status, path and error tags"
 			assertThat(span.tags()).containsOnlyKeys("http.method", "http.path", "http.status_code", "error")
 		where:
@@ -204,7 +237,7 @@ class ZipkinHttpClientImplSpec extends Specification {
 			}.value
 		then:
 			response.getStatusCode() == 200
-			Span span = reporter.spans.get(0)
+			Span span = takeSpan()
 		and: "should contain method and path tags, but not status code tag"
 			assertThat(span.tags()).containsOnlyKeys("http.method", "http.path")
 	}
