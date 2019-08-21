@@ -26,14 +26,16 @@ import ratpack.handling.Context
 import ratpack.handling.Handler
 import ratpack.http.HttpMethod
 import ratpack.http.client.HttpClient
+import ratpack.http.client.internal.DefaultHttpClient
 import ratpack.path.PathBinding
-
 import ratpack.zipkin.support.B3PropagationHeaders
 import ratpack.zipkin.support.TestReporter
 import spock.lang.Specification
 import spock.lang.Unroll
 import zipkin2.Span
 import zipkin2.reporter.Reporter
+
+import java.time.Duration
 
 import static org.assertj.core.api.Assertions.assertThat
 import static ratpack.groovy.test.embed.GroovyEmbeddedApp.ratpack
@@ -511,12 +513,9 @@ class ServerTracingModuleSpec extends Specification {
                     })
 				}
 				handlers { chain ->
-					chain.get("say/:message", new Handler() {
-						@Override
-						void handle(final Context ctx) throws Exception {
-							ctx.response.send("yo!")
-						}
-					})
+					chain.get("say/:message") { ctx ->
+						ctx.response.send("yo!")
+					}
                 }
             }
 		when:
@@ -622,5 +621,35 @@ class ServerTracingModuleSpec extends Specification {
 			assertThat(span.tags()).containsKey("before_render")
 			assertThat(span.tags()).containsKey("after_render")
 			assertThat(span.tags()).containsValue("the_param")
+	}
+
+	def "test that a consumer app can provide their own http client configs"() {
+		given:
+			def app = ratpack {
+				bindings {
+					module(ServerTracingModule.class)
+					bindInstance(HttpClient, HttpClient.of {
+						it.readTimeout(Duration.ofMillis(5000))
+						it.connectTimeout(Duration.ofMillis(5000))
+						it.poolSize(100)
+					})
+				}
+				handlers { chain ->
+					chain.get("say/:message") { ctx ->
+						ctx.response.send("yo!")
+					}
+				}
+			}
+		when:
+			app.test { t ->
+				t.get("say/hello")
+			}
+			def client = app.server.registry.get().get(HttpClient)
+		then:
+			client.readTimeout.toMillis() == 5000
+			client.connectTimeout.toMillis() == 5000
+			client.poolSize == 100
+			((DefaultHttpClient)client).requestInterceptor
+			((DefaultHttpClient)client).responseInterceptor
 	}
 }

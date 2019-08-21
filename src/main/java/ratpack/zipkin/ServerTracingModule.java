@@ -28,6 +28,8 @@ import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
+import com.google.inject.multibindings.OptionalBinder;
+import ratpack.func.Action;
 import ratpack.guice.ConfigurableModule;
 import ratpack.handling.HandlerDecorator;
 import ratpack.http.client.HttpClient;
@@ -35,6 +37,7 @@ import ratpack.server.ServerConfig;
 import ratpack.util.Exceptions;
 import ratpack.zipkin.internal.DefaultClientTracingInterceptor;
 import ratpack.zipkin.internal.DefaultServerTracingHandler;
+import ratpack.zipkin.internal.HttpClientProvider;
 import ratpack.zipkin.internal.RatpackCurrentTraceContext;
 import ratpack.zipkin.internal.RatpackHttpServerParser;
 import zipkin2.Span;
@@ -55,22 +58,12 @@ public class ServerTracingModule extends ConfigurableModule<ServerTracingModule.
         .to(DefaultClientTracingInterceptor.class)
         .in(Singleton.class);
 
-    Provider<ClientTracingInterceptor> clientTracingInterceptorProvider =
-        getProvider(ClientTracingInterceptor.class);
-
-    Provider<HttpClient> httpClientProvider = () ->
-        // getProvider(HttpClient.class).get().copyWith(
-        Exceptions.uncheck(() -> HttpClient.of((s) -> {
-            ClientTracingInterceptor ic = clientTracingInterceptorProvider.get();
-            s.requestIntercept(ic::request);
-            s.responseIntercept(ic::response);
-            s.errorIntercept(ic::error);
-          })
-        );
+    OptionalBinder.newOptionalBinder(binder(), HttpClient.class)
+            .setDefault().toInstance(Exceptions.uncheck(() -> HttpClient.of(Action.noop())));
 
     bind(HttpClient.class)
         .annotatedWith(Zipkin.class)
-        .toProvider(httpClientProvider)
+        .toProvider(HttpClientProvider.class)
         .in(Singleton.class);
 
     bind(RatpackCurrentTraceContext.TracingPropagationExecInitializer.class)
