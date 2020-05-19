@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -13,11 +13,8 @@
  */
 package ratpack.zipkin.internal;
 
-
-import brave.Span;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.TraceContext;
-
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.slf4j.MDC;
@@ -27,17 +24,52 @@ import ratpack.exec.ExecutionRef;
 import ratpack.registry.MutableRegistry;
 
 public final class RatpackCurrentTraceContext extends CurrentTraceContext {
+  public static CurrentTraceContext create(){
+    return new Builder().build();
+  }
+
+  public static Builder newBuilder(){
+    return new Builder();
+  }
+
+  public static final class Builder extends CurrentTraceContext.Builder {
+    Supplier<MutableRegistry> registrySupplier = Execution::current;
+
+    public Builder registrySupplier(Supplier<MutableRegistry> registrySupplier) {
+      this.registrySupplier = registrySupplier;
+      return this;
+    }
+
+    @Override public Builder addScopeDecorator(ScopeDecorator scopeDecorator) {
+      return (Builder) super.addScopeDecorator(scopeDecorator);
+    }
+
+    @Override public CurrentTraceContext build() {
+      return new RatpackCurrentTraceContext(this);
+    }
+
+    Builder() {
+    }
+  }
 
   private static final String TRACE_ID_KEY = "TraceId";
 
   private final Supplier<MutableRegistry> registrySupplier;
 
+  /** @deprecated Please use {@link #newBuilder()} */
+  @Deprecated
   public RatpackCurrentTraceContext(Supplier<MutableRegistry> registrySupplier) {
     this.registrySupplier = registrySupplier;
   }
 
+  /** @deprecated Please use {@link #create()} */
+  @Deprecated
   public RatpackCurrentTraceContext() {
     this(Execution::current);
+  }
+
+  RatpackCurrentTraceContext(Builder builder) {
+    this.registrySupplier = builder.registrySupplier;
   }
 
   @Override
