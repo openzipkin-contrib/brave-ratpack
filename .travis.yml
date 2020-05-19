@@ -9,8 +9,6 @@ language: java
 jdk: openjdk8
 
 before_install:
-  # Disable testcontainers checks
-  - echo checks.disable=true > ~/.testcontainers.properties
   # allocate commits to CI, not the owner of the deploy key
   - git config user.name "zipkinci"
   - git config user.email "zipkinci+zipkin-dev@googlegroups.com"
