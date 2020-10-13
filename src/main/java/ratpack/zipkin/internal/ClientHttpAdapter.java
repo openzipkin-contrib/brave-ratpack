@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -25,6 +25,12 @@ public class ClientHttpAdapter extends HttpClientAdapter<RequestSpec, HttpRespon
   }
 
   @Override
+  public String path(RequestSpec requestSpec) {
+    String path = requestSpec.getUri().getPath();
+    return "".equals(path) ? "/" : path;
+  }
+
+  @Override
   public String url(RequestSpec requestSpec) {
     return requestSpec.getUri().toString();
   }
@@ -39,4 +45,8 @@ public class ClientHttpAdapter extends HttpClientAdapter<RequestSpec, HttpRespon
     return response.getStatusCode();
   }
 
+  @Override
+  public int statusCodeAsInt(HttpResponse response) {
+    return response.getStatusCode();
+  }
 }
