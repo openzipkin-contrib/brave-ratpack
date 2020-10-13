@@ -73,6 +73,17 @@ public class ITRatpackHttpClient extends ITHttpAsyncClient<HttpClient> {
     client.close();
   }
 
+  @Override protected void options(HttpClient httpClient, String path) {
+    try {
+      harness.yield(e -> client.request(URI.create(url(path)), req -> req.method("OPTIONS")))
+          .getValueOrThrow();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @Override protected void get(HttpClient client, String pathIncludingQuery) {
     try {
       harness.yield(e -> client.get(URI.create(url(pathIncludingQuery)))).getValueOrThrow();
@@ -153,7 +164,7 @@ public class ITRatpackHttpClient extends ITHttpAsyncClient<HttpClient> {
   }
 
   // TODO: flakey
-  @Ignore @Test  public void clientTimestampAndDurationEnclosedByParent() {
+  @Ignore @Test public void clientTimestampAndDurationEnclosedByParent() {
     runWithHarness(super::clientTimestampAndDurationEnclosedByParent);
   }
 
