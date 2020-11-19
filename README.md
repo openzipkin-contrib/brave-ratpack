@@ -188,8 +188,3 @@ Note:
 - The V1 version of this library targeting the older Brave library is now *deprecated* and is no longer released.
   If this is a problem for anyone please open an issue and we will re-evaluate the need to continue support for this.
 - The Brave V1 Span Reporter support is now *deprecated*.
-
-    [ci-img]: https://travis-ci.org/openzipkin-contrib/brave-ratpack.svg?branch=master
-    [ci]: https://travis-ci.org/openzipkin-contrib/brave-ratpack
-    [maven-img]: https://img.shields.io/maven-central/v/io.zipkin.brave.ratpack/brave-ratpack.svg?maxAge=2592000
-    [maven]: http://search.maven.org/#search%7Cga%7C1%7Cbrave-ratpack
