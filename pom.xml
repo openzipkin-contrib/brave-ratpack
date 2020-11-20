@@ -308,6 +308,23 @@
           <groupId>de.qaware.maven</groupId>
           <artifactId>go-offline-maven-plugin</artifactId>
           <version>1.2.7</version>
+          <configuration>
+            <!-- Add dependencies indirectly referenced by build plugins -->
+            <dynamicDependencies>
+              <DynamicDependency>
+                <groupId>org.codehaus.mojo.signature</groupId>
+                <artifactId>${main.signature.artifact}</artifactId>
+                <version>1.0</version>
+                <repositoryType>MAIN</repositoryType>
+              </DynamicDependency>
+              <DynamicDependency>
+                <groupId>org.apache.maven.surefire</groupId>
+                <artifactId>surefire-junit-platform</artifactId>
+                <version>${maven-failsafe-plugin.version}</version>
+                <repositoryType>PLUGIN</repositoryType>
+              </DynamicDependency>
+            </dynamicDependencies>
+          </configuration>
         </plugin>
 
         <plugin>
