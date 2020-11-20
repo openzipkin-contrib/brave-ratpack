@@ -12,15 +12,20 @@ Uses [Brave](https://github.com/openzipkin/brave) for the underlying Zipkin supp
 
 ### Zipkin
 
-First you'll need to (obviously) get Zipkin up and running. The quickest way to do this is using Docker and `docker-compose`.
 
-Clone [docker-zipkin](https://github.com/openzipkin/docker-zipkin)
+The quickest way to get started is to fetch the [latest released server](https://search.maven.org/remote_content?g=io.zipkin&a=zipkin-server&v=LATEST&c=exec) as a self-contained executable jar. Note that the Zipkin server requires minimum JRE 8. For example:
 
-Start the Zipkin stack by running;
-
+```bash
+curl -sSL https://zipkin.io/quickstart.sh | bash -s
+java -jar zipkin.jar
 ```
-docker-compose up
+
+You can also start Zipkin via Docker.
+```bash
+# Note: this is mirrored as ghcr.io/openzipkin/zipkin
+docker run -d -p 9411:9411 openzipkin/zipkin
 ```
+
 ## Local development
 
 To build and install into your local environment:
