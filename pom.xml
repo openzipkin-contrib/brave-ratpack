@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.zipkin.brave.ratpack</groupId>
   <artifactId>brave-ratpack</artifactId>
-  <version>2.6.4-SNAPSHOT</version>
+  <version>2.6.4</version>
   <packaging>jar</packaging>
 
   <properties>
@@ -100,7 +100,7 @@
     <connection>scm:git:https://github.com/openzipkin-contrib/brave-ratpack.git
     </connection>
     <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-ratpack.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>2.6.4</tag>
   </scm>
 
   <!-- Developer section is needed for Maven Central, but doesn't need to include each person -->
@@ -449,7 +449,7 @@
           <!-- workaround to SUREFIRE-1831 -->
           <useModulePath>false</useModulePath>
           <!-- brave-ratpack specific: workaround to codecov agent errors SUREFIRE-1614 -->
-          <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
+          <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory" />
           <!-- Brave and OkHttp MockWebServer log with java.util.logging. Adding the bridge allows
                allows us to change scope and format via log4j2.properties -->
           <systemPropertyVariables>
