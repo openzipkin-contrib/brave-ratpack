@@ -62,6 +62,7 @@
     <assertj.version>3.18.0</assertj.version>
 
     <animal-sniffer-maven-plugin.version>1.19</animal-sniffer-maven-plugin.version>
+    <go-offline-maven-plugin.version>1.2.7</go-offline-maven-plugin.version>
     <!-- TODO: cleanup any redundant ignores now also in the 4.0 release (once final) -->
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
@@ -307,7 +308,7 @@
         <plugin>
           <groupId>de.qaware.maven</groupId>
           <artifactId>go-offline-maven-plugin</artifactId>
-          <version>1.2.7</version>
+          <version>${go-offline-maven-plugin.version}</version>
           <configuration>
             <!-- Add dependencies indirectly referenced by build plugins -->
             <dynamicDependencies>
