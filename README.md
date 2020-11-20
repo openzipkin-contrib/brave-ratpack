@@ -1,8 +1,10 @@
-[![Build Status][ci-img]][ci] [![Released Version][maven-img]][maven]
-
 # ratpack-zipkin
 
-[Zipkin](https://twitter.github.io/zipkin/index.html) support for [Ratpack](http://www.ratpack.io).
+[![Gitter chat](http://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/openzipkin/zipkin)
+[![Build Status](https://github.com/openzipkin-contrib/brave-ratpack/workflows/test/badge.svg)](https://github.com/openzipkin-contrib/brave-ratpack/actions?query=workflow%3Atest)
+[![Maven Central](https://img.shields.io/maven-central/v/io.zipkin.brave.ratpack/brave-ratpack.svg)](https://search.maven.org/search?q=g:io.zipkin.brave.ratpack%20AND%20a:brave-ratpack)
+
+[Zipkin](https://zipkin.io) support for [Ratpack](http://www.ratpack.io).
 
 Uses [Brave](https://github.com/openzipkin/brave) for the underlying Zipkin support.
 
@@ -28,14 +30,14 @@ To build and install into your local environment:
 ```
 
 ## Artifacts
+The artifact published is `brave-ratpack` under the group ID `io.zipkin.brave.ratpack`
 
 ### Library Releases
+Releases are at [Sonatype](https://oss.sonatype.org/content/repositories/releases) and [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.zipkin.brave.ratpack%22)
 
-Releases are uploaded to [Bintray](https://bintray.com/openzipkin-contrib/maven/brave-ratpack).
-
-### Library Snaphosts
-
-Snapshots are uploaded to [JFrog](http://oss.jfrog.org/oss-snapshot-local/) after commits to master.
+### Library Snapshots
+Snapshots are uploaded to [Sonatype](https://oss.sonatype.org/content/repositories/snapshots) after
+commits to master.
 
 ## Ratpack-zipkin V2 
 
@@ -186,8 +188,3 @@ Note:
 - The V1 version of this library targeting the older Brave library is now *deprecated* and is no longer released.
   If this is a problem for anyone please open an issue and we will re-evaluate the need to continue support for this.
 - The Brave V1 Span Reporter support is now *deprecated*.
-
-    [ci-img]: https://travis-ci.org/openzipkin-contrib/brave-ratpack.svg?branch=master
-    [ci]: https://travis-ci.org/openzipkin-contrib/brave-ratpack
-    [maven-img]: https://img.shields.io/maven-central/v/io.zipkin.brave.ratpack/brave-ratpack.svg?maxAge=2592000
-    [maven]: http://search.maven.org/#search%7Cga%7C1%7Cbrave-ratpack
