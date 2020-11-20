@@ -315,6 +315,7 @@
                 <groupId>org.codehaus.mojo.signature</groupId>
                 <artifactId>${main.signature.artifact}</artifactId>
                 <version>1.0</version>
+                <type>signature</type>
                 <repositoryType>MAIN</repositoryType>
               </DynamicDependency>
               <DynamicDependency>
@@ -446,6 +447,8 @@
           <reuseForks>false</reuseForks>
           <!-- workaround to SUREFIRE-1831 -->
           <useModulePath>false</useModulePath>
+          <!-- workaround to SUREFIRE-1614 -->
+          <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
           <!-- Brave and OkHttp MockWebServer log with java.util.logging. Adding the bridge allows
                allows us to change scope and format via log4j2.properties -->
           <systemPropertyVariables>
