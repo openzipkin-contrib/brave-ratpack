@@ -68,12 +68,12 @@
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
     <maven-deploy-plugin.version>3.0.0-M1</maven-deploy-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
-    <maven-failsafe-plugin.version>3.0.0-M5</maven-failsafe-plugin.version>
     <maven-install-plugin.version>3.0.0-M1</maven-install-plugin.version>
     <maven-javadoc-plugin.version>3.2.0</maven-javadoc-plugin.version>
     <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
     <maven-release-plugin.version>3.0.0-M1</maven-release-plugin.version>
     <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
+    <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
     <nexus-staging-maven-plugin.version>1.6.8</nexus-staging-maven-plugin.version>
   </properties>
 
@@ -322,7 +322,7 @@
               <DynamicDependency>
                 <groupId>org.apache.maven.surefire</groupId>
                 <artifactId>surefire-junit-platform</artifactId>
-                <version>${maven-failsafe-plugin.version}</version>
+                <version>${maven-surefire-plugin.version}</version>
                 <repositoryType>PLUGIN</repositoryType>
               </DynamicDependency>
             </dynamicDependencies>
@@ -409,24 +409,6 @@
         </executions>
       </plugin>
 
-
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>${maven-failsafe-plugin.version}</version>
-        <configuration>
-          <includes>
-            <include>**/*Spec.java</include>
-          </includes>
-          <!-- Ensure scope leak cause ends up in the console -->
-          <trimStackTrace>false</trimStackTrace>
-          <!-- Don't add org.apache.logging.log4j.jul.LogManager here as it conflicts with
-               classloading, causing brave.test.propagation.PropagationTest to flake. -->
-          <classpathDependencyExcludes>
-            <classpathDependencyExclude>org.apache.logging.log4j:log4j-jul</classpathDependencyExclude>
-          </classpathDependencyExcludes>
-        </configuration>
-      </plugin>
-
       <!-- Below here are Zipkin project norms -->
 
       <plugin>
@@ -441,14 +423,32 @@
       </plugin>
 
       <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven-surefire-plugin.version}</version>
+        <configuration>
+          <includes>
+            <!-- brave-ratpack specific -->
+            <include>**/*Spec.java</include>
+          </includes>
+          <!-- Ensure scope leak cause ends up in the console -->
+          <trimStackTrace>false</trimStackTrace>
+          <!-- Don't add org.apache.logging.log4j.jul.LogManager here as it conflicts with
+               classloading, causing brave.test.propagation.PropagationTest to flake. -->
+          <classpathDependencyExcludes>
+            <classpathDependencyExclude>org.apache.logging.log4j:log4j-jul</classpathDependencyExclude>
+          </classpathDependencyExcludes>
+        </configuration>
+      </plugin>
+
+      <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <version>${maven-failsafe-plugin.version}</version>
+        <version>${maven-surefire-plugin.version}</version>
         <configuration>
           <!-- Try to prevent flakes in CI -->
           <reuseForks>false</reuseForks>
           <!-- workaround to SUREFIRE-1831 -->
           <useModulePath>false</useModulePath>
-          <!-- workaround to codecov agent errors SUREFIRE-1614 -->
+          <!-- brave-ratpack specific: workaround to codecov agent errors SUREFIRE-1614 -->
           <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
           <!-- Brave and OkHttp MockWebServer log with java.util.logging. Adding the bridge allows
                allows us to change scope and format via log4j2.properties -->
