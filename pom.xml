@@ -448,7 +448,7 @@
           <reuseForks>false</reuseForks>
           <!-- workaround to SUREFIRE-1831 -->
           <useModulePath>false</useModulePath>
-          <!-- workaround to SUREFIRE-1614 -->
+          <!-- workaround to codecov agent errors SUREFIRE-1614 -->
           <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
           <!-- Brave and OkHttp MockWebServer log with java.util.logging. Adding the bridge allows
                allows us to change scope and format via log4j2.properties -->
@@ -578,6 +578,7 @@
                 <exclude>codecov.yml</exclude>
                 <exclude>.gitignore</exclude>
                 <exclude>.editorconfig</exclude>
+                <exclude>.mailmap</exclude>
                 <exclude>.mvn/**</exclude>
                 <exclude>mvnw*</exclude>
                 <exclude>etc/header.txt</exclude>
