@@ -12,7 +12,6 @@ Uses [Brave](https://github.com/openzipkin/brave) for the underlying Zipkin supp
 
 ### Zipkin
 
-
 The quickest way to get started is to fetch the [latest released server](https://search.maven.org/remote_content?g=io.zipkin&a=zipkin-server&v=LATEST&c=exec) as a self-contained executable jar. Note that the Zipkin server requires minimum JRE 8. For example:
 
 ```bash
