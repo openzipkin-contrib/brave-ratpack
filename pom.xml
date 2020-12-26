@@ -14,14 +14,12 @@
     the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.zipkin.brave.ratpack</groupId>
   <artifactId>brave-ratpack</artifactId>
-  <version>2.6.5-SNAPSHOT</version>
+  <version>2.6.5</version>
   <packaging>jar</packaging>
 
   <properties>
@@ -56,7 +54,7 @@
     <brave.version>5.13.3</brave.version>
 
     <!-- override to set exclusions per-project -->
-    <errorprone.args/>
+    <errorprone.args />
     <errorprone.version>2.4.0</errorprone.version>
 
     <junit.version>4.13.1</junit.version>
@@ -111,7 +109,7 @@
     </connection>
     <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-ratpack.git
     </developerConnection>
-    <tag>HEAD</tag>
+    <tag>2.6.5</tag>
   </scm>
 
   <!-- Developer section is needed for Maven Central, but doesn't need to include each person -->
@@ -483,7 +481,7 @@
           <!-- workaround to SUREFIRE-1831 -->
           <useModulePath>false</useModulePath>
           <!-- brave-ratpack specific: workaround to codecov agent errors SUREFIRE-1614 -->
-          <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
+          <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory" />
           <!-- Brave and OkHttp MockWebServer log with java.util.logging. Adding the bridge allows
                allows us to change scope and format via log4j2.properties -->
           <systemPropertyVariables>
